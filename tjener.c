@@ -5,17 +5,17 @@
 #include <string.h>
 #include <sys/socket.h>
 
-#define LOKAL_PORT 55556
+#define LOKAL_PORT 80
 #define BAK_LOGG 10 // Størrelse på for kø ventende forespørsler 
 
 int main ()
 {
-
+	
   struct sockaddr_in  lok_adr;
   // Fildeskriptor variablene som brukes for socketene
   int sd, ny_sd;
-  // Relativ filsti til index.asis
-  //char filepath[] = "index.asis";
+  // PID (Prosessindikator)
+  pid_t pid;
   // Ett buffer for innlesing fra fil
   char fbuffer[1024];
   // Ett buffer for innlesing fra fildeskriptor
@@ -24,12 +24,15 @@ int main ()
   char nosupmedia[] = "415 Unsupported Media Type\n\nThe request includes a media that the server doesn't support\n";
   // Streng som inneholder feilmelding om at fil ikke eksisterer
   char noresource[] = "404 File not found\n";
+  // Peker av typen fil
   FILE * fp;
+  
+  // Endre rotkatalog for kallende prosess 
+  if(chroot("home/lloyd/da-nan3000/eksempler/www/") == 0)
+	printf("The root catalogue was changed");
   
   // Setter opp socket-strukturen
   sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  
-  //fprintf(stderr, "sd is \n");
   
   if(sd == -1)
 	fprintf(stderr, "Could not create socket\n");
@@ -49,7 +52,13 @@ int main ()
     fprintf(stderr, "Prosess %d er knyttet til port %d.\n", getpid(), LOKAL_PORT);
   else
     exit(1);
-
+    
+  // Privilegie-separasjon, frata serveren root-rettigheter før lytting
+  if(setgid(getgid()) != 0)
+	printf("setgid not set\n");
+  if(setuid(getuid()) != 0)
+	printf("setuid not set\n");
+  
   // Venter på forespørsel om forbindelse
   listen(sd, BAK_LOGG); 
   while(1){ 
@@ -57,8 +66,12 @@ int main ()
     // Aksepterer mottatt forespørsel
     ny_sd = accept(sd, NULL, NULL);    
 
-    if(0==fork()) {
-
+	pid = fork();
+    if(0 == pid ) {
+		/*printf("PID of child process is %d\n", pid);
+		pid_t ppid = getppid();
+		printf("PID of parent process shown from child is %d\n", ppid);*/
+	  close(sd);
       dup2(ny_sd, 1); // redirigerer socket til standard utgang
       
       // Les melding fra socket og plasser i egnet buffer
@@ -138,6 +151,7 @@ int main ()
 
     else {
       close(ny_sd);
+      //printf("PID of parent process is %d\n", pid);
     }
   }
   return 0;
