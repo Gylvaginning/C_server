@@ -3,10 +3,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/socket.h>
 
 #define LOKAL_PORT 80
 #define BAK_LOGG 10 // Størrelse på for kø ventende forespørsler 
+
+void demoniser();
 
 int main ()
 {
@@ -26,6 +29,9 @@ int main ()
   char noresource[] = "404 File not found\n";
   // Peker av typen fil
   FILE * fp;
+  
+  // Demoniserer prosessen
+  demoniser();
   
   // Endre rotkatalog for kallende prosess 
   if(chroot("home/lloyd/da-nan3000/eksempler/www/") == 0)
@@ -157,6 +163,35 @@ int main ()
   return 0;
 }
 
+// Funksjon for demonisering av tjeneren
+void demoniser(){
+	pid_t ppid;
+	//pid_t sid;
+	ppid = fork();
+	if(ppid != 0){
+		exit(0); // Opphav gjør exit
+	}
+	/* Jobber nå på barnet som er blitt foreldreløs
+	 * Kjører setsid() for å lage en ny sesjon der barneprosessen
+	 * blir ny sesjonsleder og prosessgruppeleder uten kontrollterminal*/
+	 /*sid = */setsid();
+	 /*if(sid != -1)
+		printf("The calling process with PID %d was not a process group leader", ppid);*/
+		
+	 // Ignorere SIGHUP når sesjonslederen i neste trinn skal termineres
+	 signal(SIGHUP, SIG_IGN);
+	 
+	 /* Gjør fork på nytt for å hindre at tjeneren ikke lenger 
+	  * er sesjonsleder og dermed ikke kan knytte seg til en
+	  * kontrollterminal som er ledig */
+	  if(fork() != 0){
+		  exit(0);
+	  }
+	  
+	  // Steng alle unødvendige filer
+	  //close();
+		
+}
 /*printf("HTTP/1.1 200 OK\n");
       printf("Content-Type: text/plain\n");
       printf("\n");
