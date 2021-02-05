@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <fcntl.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 
 #define LOKAL_PORT 80
@@ -16,7 +18,7 @@ int main ()
 	
   struct sockaddr_in  lok_adr;
   // Fildeskriptor variablene som brukes for socketene
-  int sd, ny_sd;
+  int sd, ny_sd, ed;
   // PID (Prosessindikator)
   pid_t pid;
   // Ett buffer for innlesing fra fil
@@ -24,18 +26,25 @@ int main ()
   // Ett buffer for innlesing fra fildeskriptor
   char fdbuffer[1024];
   // Streng som inneholder feilmelding om ikke-støttet filtype
-  char nosupmedia[] = "415 Unsupported Media Type\n\nThe request includes a media that the server doesn't support\n";
+  char nosupmedia[1024] = "415 Unsupported Media Type\n\nThe request includes a media that the server doesn't support\n";
   // Streng som inneholder feilmelding om at fil ikke eksisterer
-  char noresource[] = "404 File not found\n";
+  char noresource[1024] = "404 File not found\n";
   // Peker av typen fil
   FILE * fp;
+  
+  // Omdirigere stderr(fildeskriptor 2) til å skrive til en loggfil
+  ed = open("www/error.log", O_WRONLY);
+  dup2(ed, 2);
+  close(ed);
   
   // Demoniserer prosessen
   demoniser();
   
   // Endre rotkatalog for kallende prosess 
   if(chroot("home/lloyd/da-nan3000/eksempler/www/") == 0)
-	printf("The root catalogue was changed");
+	fprintf(stderr, "The root catalogue was changed");
+  else
+	fprintf(stderr, "The root catalogue was not changed\n");
   
   // Setter opp socket-strukturen
   sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -43,7 +52,7 @@ int main ()
   if(sd == -1)
 	fprintf(stderr, "Could not create socket\n");
   else
-	fprintf(stderr, "Socket created successfully\n");
+	printf("Socket created successfully\n");
 
   // For at operativsystemet ikke skal holde porten reservert etter tjenerens død
   setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int));
@@ -55,15 +64,15 @@ int main ()
 
   // Kobler sammen socket og lokal adresse
   if ( 0==bind(sd, (struct sockaddr *)&lok_adr, sizeof(lok_adr)) )
-    fprintf(stderr, "Prosess %d er knyttet til port %d.\n", getpid(), LOKAL_PORT);
+    printf("Prosess %d er knyttet til port %d.\n", getpid(), LOKAL_PORT);
   else
     exit(1);
     
   // Privilegie-separasjon, frata serveren root-rettigheter før lytting
-  if(setgid(getgid()) != 0)
-	printf("setgid not set\n");
-  if(setuid(getuid()) != 0)
-	printf("setuid not set\n");
+  if(setgid(1000) == 0)
+	fprintf(stderr, "setgid not set\n");
+  if(setuid(1000) == 0)
+	fprintf(stderr, "setuid not set\n");
   
   // Venter på forespørsel om forbindelse
   listen(sd, BAK_LOGG); 
@@ -77,7 +86,7 @@ int main ()
 		/*printf("PID of child process is %d\n", pid);
 		pid_t ppid = getppid();
 		printf("PID of parent process shown from child is %d\n", ppid);*/
-	  close(sd);
+	  //close(sd);
       dup2(ny_sd, 1); // redirigerer socket til standard utgang
       
       // Les melding fra socket og plasser i egnet buffer
@@ -87,32 +96,46 @@ int main ()
       // printf("%s \n", fdbuffer);
       
       // Se gjennom GET-forespørselen og avgjør om det letes 
-      // etter asis-fil. Hvis svaret er nei, skriv ut feilmelding
+      // etter gyldig fil med gyldig filendelse. Hvis svaret er nei, skriv ut feilmelding
       char * test;
       char * saveptr = fdbuffer;
       test = strtok_r(fdbuffer, ".", &saveptr);
-      //printf("Test is %s\n", test);
       test = strtok_r(NULL, " ", &saveptr);
-      //printf("Test is %s\n", test);
-      if(strcmp(test, "asis") == 0){
+      //printf("This is the string in test '%s'\n", test);
+      if(strcmp(test, "asis") == 0 || strcmp(test, "html") == 0 ||
+      strcmp(test, "htm") == 0 || strcmp(test, "shtml") == 0 ||
+      strcmp(test, "asc") == 0 || strcmp(test, "txt") == 0 ||
+      strcmp(test, "text") == 0 || strcmp(test, "pot") == 0 ||
+      strcmp(test, "brf") == 0 || strcmp(test, "srt") == 0 ||
+      strcmp(test, "png") == 0 || strcmp(test, "svg") == 0 ||
+      strcmp(test, "svgz") == 0 || strcmp(test, "xml") == 0 ||
+      strcmp(test, "xsd") == 0 || strcmp(test, "xsl") == 0 ||
+      strcmp(test, "xslt") == 0 || strcmp(test, "css") == 0 ||
+      strcmp(test, "json") == 0){
 		  /* Må avgjøre om filstien finnes 
 		   * og kan aksesseres, ellers sendes feilmelding */
-		  char * test2;
-		  char * test3;
-		  test2 = strtok_r(fdbuffer, " ", &saveptr);
-		  //printf("Test2 is %s\n", test2);
+		  //char * test2 = NULL;
+		  char dot[10]= ".";
+		  char * test3 = NULL;
+		  /*printf("This is the string in test '%s'\n", test);
+		  printf("This is the string in dot '%s'\n", dot);
+		  printf("This is the string in test2 '%s'\n", test2);*/
+		  strtok_r(fdbuffer, " ", &saveptr);
 		  test3 = strtok_r(NULL, " ", &saveptr);
-		  //printf("Test3 is %s\n", test3);
-		  test2 = ".asis";
-		  strcat(test3, test2);
-		  //printf("Test3 is %s\n", test3);
+		  //printf("This is the string in test2 '%s'\n", test2);
+		  strcat(dot, test);
+		 /* printf("This is the string in test '%s'\n", test);
+		  printf("This is the string in test2 '%s'\n", test2);
+		  printf("This is the string in test3 '%s'\n", test3);
+		  printf("This is the string in dot '%s'\n", dot);*/
+		  strcat(test3, dot);
+		  //printf("This is the string in test3 '%s'\n", test3);
 		  if(access(test3, F_OK) == 0){
-			  //printf("%s exists\n", test3);
 			  /* Vet nå at filsti er gyldig og at filtype er OK
 			   * Åpner filen */
 			  fp = fopen(test3, "r");
 			  if(fp == NULL){
-				  //printf("The file '%s' failed to open \n", filepath);
+				  //fprintf(stderr, "The file '%s' failed to open \n");
 				  }
 			  else{
 				  //printf("The file '%s' was opened successfully \n", filepath);
@@ -156,6 +179,11 @@ int main ()
     }
 
     else {
+		// For å hindre zombie prosesser
+		//signal(SIGCHLD, SIG_IGN);
+		wait(NULL);
+		
+		// Steng fildeskriptor
       close(ny_sd);
       //printf("PID of parent process is %d\n", pid);
     }
@@ -174,7 +202,7 @@ void demoniser(){
 	/* Jobber nå på barnet som er blitt foreldreløs
 	 * Kjører setsid() for å lage en ny sesjon der barneprosessen
 	 * blir ny sesjonsleder og prosessgruppeleder uten kontrollterminal*/
-	 /*sid = */setsid();
+	 setsid();
 	 /*if(sid != -1)
 		printf("The calling process with PID %d was not a process group leader", ppid);*/
 		
@@ -185,11 +213,13 @@ void demoniser(){
 	  * er sesjonsleder og dermed ikke kan knytte seg til en
 	  * kontrollterminal som er ledig */
 	  if(fork() != 0){
-		  exit(0);
+		  exit(0); // Opphav gjør exit
 	  }
 	  
 	  // Steng alle unødvendige filer
-	  //close();
+	  close(STDIN_FILENO);
+	  close(STDOUT_FILENO);
+	  close(STDERR_FILENO);
 		
 }
 /*printf("HTTP/1.1 200 OK\n");
