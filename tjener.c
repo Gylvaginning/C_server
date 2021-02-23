@@ -26,23 +26,20 @@ int main ()
   // Ett buffer for innlesing fra fildeskriptor
   char fdbuffer[1024];
   // Streng som inneholder feilmelding om ikke-støttet filtype
-  char nosupmedia[1024] = "415 Unsupported Media Type\n\nThe request includes a media that the server doesn't support\n";
+  char nosupmedia[1024] = "HTTP/1.1 415 Unsupported Media Type\n\nThe request includes a media that the server doesn't support\n";
   // Streng som inneholder feilmelding om at fil ikke eksisterer
-  char noresource[1024] = "404 File not found\n";
+  char noresource[1024] = "HTTP/1.1 404 File not found\n\nThe requested resource was not found.";
   // Peker av typen fil
   FILE * fp;
   
   // Omdirigere stderr(fildeskriptor 2) til å skrive til en loggfil
-  ed = open("www/error.log", O_WRONLY);
+  ed = open("/var/log/debug.log", O_WRONLY);
   dup2(ed, 2);
   close(ed);
   
-  // Demoniserer prosessen
-  demoniser();
-  
   // Endre rotkatalog for kallende prosess 
-  if(chroot("home/lloyd/da-nan3000/eksempler/www/") == 0)
-	fprintf(stderr, "The root catalogue was changed");
+  if(chroot("/var/www/") == 0)
+	fprintf(stderr, "The root catalogue was changed\n");
   else
 	fprintf(stderr, "The root catalogue was not changed\n");
   
@@ -69,10 +66,15 @@ int main ()
     exit(1);
     
   // Privilegie-separasjon, frata serveren root-rettigheter før lytting
-  if(setgid(1000) == 0)
+  if(setgid(1000) != 0)
 	fprintf(stderr, "setgid not set\n");
-  if(setuid(1000) == 0)
+  if(setuid(1000) != 0)
 	fprintf(stderr, "setuid not set\n");
+	
+  // Demoniserer prosessen
+  if (getppid() != 1) {
+	demoniser();
+  }
   
   // Venter på forespørsel om forbindelse
   listen(sd, BAK_LOGG); 
@@ -93,15 +95,18 @@ int main ()
       read(ny_sd, fdbuffer, sizeof(fdbuffer));
       
       // Hva havner i fdbuffer?
-      // printf("%s \n", fdbuffer);
+       //fprintf(stderr, "%s \n", fdbuffer);
       
       // Se gjennom GET-forespørselen og avgjør om det letes 
       // etter gyldig fil med gyldig filendelse. Hvis svaret er nei, skriv ut feilmelding
       char * test;
       char * saveptr = fdbuffer;
       test = strtok_r(fdbuffer, ".", &saveptr);
+      //fprintf(stderr, "%p \n", &test);
+      //printf("Linje106: %s \n", test);
       test = strtok_r(NULL, " ", &saveptr);
-      //printf("This is the string in test '%s'\n", test);
+      //fprintf(stderr, "%p \n", &test);
+      //printf("Linje109: %s \n", test);
       if(strcmp(test, "asis") == 0 || strcmp(test, "html") == 0 ||
       strcmp(test, "htm") == 0 || strcmp(test, "shtml") == 0 ||
       strcmp(test, "asc") == 0 || strcmp(test, "txt") == 0 ||
@@ -114,40 +119,91 @@ int main ()
       strcmp(test, "json") == 0){
 		  /* Må avgjøre om filstien finnes 
 		   * og kan aksesseres, ellers sendes feilmelding */
-		  //char * test2 = NULL;
 		  char dot[10]= ".";
 		  char * test3 = NULL;
-		  /*printf("This is the string in test '%s'\n", test);
-		  printf("This is the string in dot '%s'\n", dot);
-		  printf("This is the string in test2 '%s'\n", test2);*/
 		  strtok_r(fdbuffer, " ", &saveptr);
+		  //printf("Linje125: %s \n", test3);
 		  test3 = strtok_r(NULL, " ", &saveptr);
-		  //printf("This is the string in test2 '%s'\n", test2);
+		  //printf("Linje127: %s \n", test3);
 		  strcat(dot, test);
-		 /* printf("This is the string in test '%s'\n", test);
-		  printf("This is the string in test2 '%s'\n", test2);
-		  printf("This is the string in test3 '%s'\n", test3);
-		  printf("This is the string in dot '%s'\n", dot);*/
 		  strcat(test3, dot);
-		  //printf("This is the string in test3 '%s'\n", test3);
+		  //printf("Linje130: %s \n", test3);
+		  //fprintf(stderr, "Linje131: %s \n", test3);
 		  if(access(test3, F_OK) == 0){
-			  /* Vet nå at filsti er gyldig og at filtype er OK
-			   * Åpner filen */
-			  fp = fopen(test3, "r");
-			  if(fp == NULL){
-				  //fprintf(stderr, "The file '%s' failed to open \n");
+			  /* Vet nå at filsti er gyldig og at filtype er OK*/
+			  
+			  char * ptr;
+			  // Skriver feilmelding dersom fil ikke skulle la seg åpne
+			  /*if(fp == NULL){
+				  fprintf(stderr, "The file '%p' failed to open \n", &fp);
+				  }*/
+			  if(strcmp(test, "asis") == 0 || strcmp(test, "asc") == 0 || strcmp(test, "txt") == 0 || strcmp(test, "text") == 0 || strcmp(test, "pot") == 0 || strcmp(test, "brf") == 0 || strcmp(test, "srt") == 0){
+				  // Åpne fil
+				  fp = fopen(test3, "r");
+				  // Skrive HTTP head til socket
+				  //ptr = "HTTP/1.1 200 OK\nContent-Type: text/plain\n\n";
+				  //size_t st = strlen(ptr);
+				  //write(ny_sd, ptr, st);
+				  // Skrive filinnholdet til socket
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
 				  }
-			  else{
-				  //printf("The file '%s' was opened successfully \n", filepath);
-				  int obj = fread(fbuffer, 1, 1024, fp);
-				  
-				  //printf("Content of fbuffer is %s\n", fbuffer);
-				  write(ny_sd, fbuffer, obj);
+			 else if(strcmp(test, "html") == 0 || strcmp(test, "htm") == 0 || strcmp(test, "shtml") == 0){
+				  fp = fopen(test3, "r");
+				  ptr = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n";
+				  size_t st = strlen(ptr);
+				  write(ny_sd, ptr, st);
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
 				  }
-				// Les tekststrenger fra filen, plasser det i et buffer og skriv ut
-				//while(fscanf(fp, "%s", fbuffer)!=EOF){
-				//printf("%s", fbuffer);
-				//}		
+			else if(strcmp(test, "png") == 0){
+				  fp = fopen(test3, "r");
+				  ptr = "HTTP/1.1 200 OK\nContent-Type: image/png\n\n";
+				  size_t st = strlen(ptr);
+				  write(ny_sd, ptr, st);
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
+				  }
+			else if(strcmp(test, "svg") == 0 || strcmp(test, "svgz") == 0){
+				  fp = fopen(test3, "r");
+				  ptr = "HTTP/1.1 200 OK\nContent-Type: image/svg+xml\n\n";
+				  size_t st = strlen(ptr);
+				  write(ny_sd, ptr, st);
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
+				  }
+			else if(strcmp(test, "xml") == 0 || strcmp(test, "xsd") == 0){
+				  fp = fopen(test3, "r");
+				  ptr = "HTTP/1.1 200 OK\nContent-Type: application/xml\n\n";
+				  size_t st = strlen(ptr);
+				  write(ny_sd, ptr, st);
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
+				  }
+			else if(strcmp(test, "xsl") == 0 || strcmp(test, "xsl") == 0){
+				  fp = fopen(test3, "r");
+				  ptr = "HTTP/1.1 200 OK\nContent-Type: application/xslt+xml\n\n";
+				  size_t st = strlen(ptr);
+				  write(ny_sd, ptr, st);
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
+				  }
+			else if(strcmp(test, "css") == 0){
+				  fp = fopen(test3, "r");
+				  ptr = "HTTP/1.1 200 OK\nContent-Type: text/css\n\n";
+				  size_t st = strlen(ptr);
+				  write(ny_sd, ptr, st);
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
+				  }
+			else if(strcmp(test, "json") == 0){
+				  fp = fopen(test3, "r");
+				  ptr = "HTTP/1.1 200 OK\nContent-Type: application/json\n\n";
+				  size_t st = strlen(ptr);
+				  write(ny_sd, ptr, st);
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
+				  }
 		  }
 		  else{
 			write(ny_sd, noresource, strlen(noresource));
@@ -219,7 +275,7 @@ void demoniser(){
 	  // Steng alle unødvendige filer
 	  close(STDIN_FILENO);
 	  close(STDOUT_FILENO);
-	  close(STDERR_FILENO);
+	  //close(STDERR_FILENO);
 		
 }
 /*printf("HTTP/1.1 200 OK\n");

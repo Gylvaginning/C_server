@@ -1,10 +1,10 @@
 #!/bin/bash
 
-ROTFS=$PWD/container
+ROTFS=$PWD/container5
 INIT=init.sh
 
-gcc tjener.c -o /home/lloyd/da-nan3000/eksempler/container/bin/tjener -static
-
+gcc tjener.c -o /home/lloyd/da-nan3000/eksempler/container5/bin/tjener -static
+gcc dumb-init.c -o /home/lloyd/da-nan3000/eksempler/container5/bin/dumb-init -static
 
 if [ ! -d $ROTFS ];then
 
@@ -16,7 +16,7 @@ if [ ! -d $ROTFS ];then
 
     cd       $ROTFS/bin/
     cp       /bin/busybox .
-    cp       /bin/dumb-init .
+
     for P in $(./busybox --list); do ln busybox $P; done;
 
     cat <<EOF  > $INIT
@@ -29,4 +29,4 @@ EOF
 fi
 
 cd $ROTFS
-sudo PATH=/bin unshare --fork --pid /usr/sbin/chroot . bin/dumb-init bin/init.sh
+sudo PATH=/bin unshare --fork --pid /usr/sbin/chroot . dumb-init bin/init.sh
