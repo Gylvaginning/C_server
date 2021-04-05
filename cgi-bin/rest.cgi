@@ -25,9 +25,9 @@ if [ -n "$HTTP_COOKIE" ]; then
 	echo "Set-Cookie: $HTTP_COOKIE"
 	echo "Content-type:text/xml, application/xml;charset=utf-8"
 	echo
-	echo HTTP_COOKIE: $HTTP_COOKIE
+	#echo HTTP_COOKIE: $HTTP_COOKIE
 	sesjonsID=$(echo $HTTP_COOKIE | cut -d = -f 2)
-	echo sesjonsID: $sesjonsID
+	#echo sesjonsID: $sesjonsID
 	valid=0;
 	
 	
@@ -71,7 +71,7 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 else
 	echo "Content-type:text/xml, application/xml;charset=utf-8"
 	echo
-	echo "nub"
+	#echo "nub"
 fi
 
 # Skriver ut 'http-header' for 'plain-text' SOM SKAL VÆRE SLUTTEN AV HTTP HODET MED PÅFØLGENDE TOM LINJE FOR HTTP KROPPEN
@@ -81,10 +81,10 @@ fi
 # Skriver ut tom linje for å skille hodet fra kroppen
 #echo
 
-echo REQUEST_URI:	$REQUEST_URI
-echo REQUEST_METHOD:	$REQUEST_METHOD
-echo QUERY_STRING:	$QUERY_STRING
-echo CONTENT_LENGTH:	$CONTENT_LENGTH
+#echo REQUEST_URI:	$REQUEST_URI
+#echo REQUEST_METHOD:	$REQUEST_METHOD
+#echo QUERY_STRING:	$QUERY_STRING
+#echo CONTENT_LENGTH:	$CONTENT_LENGTH
 #echo CONTENT_TYPE       $CONTENT_TYPE
 #echo HTTP_COOKIE:       $HTTP_COOKIE
 
@@ -100,22 +100,25 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     
     #[ -z "$id" ] && echo "NULL"
 
-    # Dirigere serveren til å hente ressursen
+    # Dirigere serveren til å hente ressursen/alle ressursene
     if [[ -n "${id}" ]]; then
 		dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		epostadresse=$(echo "SELECT epostadresse FROM $tabell where diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		xmlcont="<dikt><diktID>$id</diktID><dikt>$dikt</dikt><epostadresse>$epostadresse</epostadresse></dikt>"
 		echo $xmlcont
     else
-		antall=$(echo "SELECT max(diktID) FROM $tabell;" | sqlite3 /usr/local/apache2/sqlite/database.db)
-		echo ANTALL: $antall
-		
+		antall=$(echo "SELECT MAX(diktID) FROM $tabell;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+		#echo ANTALL: $antall
 		dikttall=1
-		echo DIKTTALL: $dikttall
+		#echo DIKTTALL: $dikttall
 		while [ $dikttall -le $antall ]
 		do
 			dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$dikttall;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 			epostadresse=$(echo "SELECT epostadresse FROM $tabell where diktID=$dikttall;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+			if [ -z $dikt ]; then
+				let "dikttall += 1"
+				continue
+			fi
 			xmlcont="<dikt><diktID>$dikttall</diktID><dikt>$dikt</dikt><epostadresse>$epostadresse</epostadresse></dikt>"
 			echo $xmlcont
 			let "dikttall += 1"
@@ -128,29 +131,28 @@ fi
 if [ "$REQUEST_METHOD" = "POST" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; then
    echo Følgende skal settes inn i $REQUEST_URI:
    echo
-   echo VALID: $valid
+   #echo VALID: $valid
 
    # skriver HTTP-hode
    # streng=$(head -c $CONTENT_LENGTH)
-   echo
-   echo STRENG: $streng
+   echo $streng
    
    # Hvis det må over på XML logikk
    #echo $streng > /usr/local/apache2/transition.xml
    
-   epost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db)
-   echo EPOST: $epost
+   epost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID=$sesjonsID;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+   #echo EPOST: $epost
    
    samling=$(echo $streng | awk -F"<" '{print $2}' | cut -d ">" -f 0)
-   echo SAMLING: $samling
+   #echo SAMLING: $samling
 
    dikt=$(echo $streng | awk -F"<" '{print $3}' | cut -d ">" -f 2)
-   echo DIKT: $dikt
+   #echo DIKT: $dikt
 
    database=$(echo $REQUEST_URI | cut -d / -f 2)
-   echo DATABASE: $database
+   #echo DATABASE: $database
    tabell=$(echo $REQUEST_URI | cut -d / -f 3)
-   echo TABELL: $tabell
+   #echo TABELL: $tabell
 
    # Diktet må få epostadressen til brukeren som legger det inn! 
    echo "INSERT INTO Dikt (dikt, epostadresse) VALUES ('$dikt', '$epost');" | sqlite3 /usr/local/apache2/sqlite/database.db
@@ -163,26 +165,34 @@ if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ]; then
 
    # skriver-hode
    #streng=$(head -c $CONTENT_LENGTH)
-   echo
-   echo STRENG: $streng
+   #echo
+   #echo STRENG: $streng
    
-   epost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db)
-
+   # eposten tilhørende sesjonen
+   ichiepost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID=$sesjonsID;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+   
    samling=$(echo $streng | awk -F"<" '{print $2}' | cut -d ">" -f 0)
-   echo SAMLING: $samling
+   #echo SAMLING: $samling
 
    dikt=$(echo $streng | awk -F"<" '{print $3}' | cut -d ">" -f 2)
-   echo DIKT: $dikt
+   #echo DIKT: $dikt
 
    database=$(echo $REQUEST_URI | cut -d / -f 3)
-   echo DATABASE: $database
+   #echo DATABASE: $database
    tabell=$(echo $REQUEST_URI | cut -d / -f 4)
-   echo TABELL: $tabell
+   #echo TABELL: $tabell
    id=$(echo $REQUEST_URI | cut -d / -f 5)
-   echo ID:        $id
+   #echo ID:        $id
+   
+   # eposten tilhørende den som har lagd diktet
+   niepost=$(echo "SELECT epostadresse FROM Dikt WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 
-   # Kun der hvor epostadressen samsvarer med sesjon og brukertabell!
-   echo "UPDATE Dikt SET dikt = '$dikt' WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db
+   # Kun der hvor epostadressen samsvarer med sesjon og dikttabell!
+	if [ $niepost = $ichiepost ]; then
+		echo "UPDATE Dikt SET dikt='$dikt' WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db
+	else
+		echo "Action is not allowed."
+	fi
 fi
 
 # Må være innlogget for å kunne gjøre DELETE (Slette et eget dikt eller alle egne dikt)
@@ -190,20 +200,37 @@ if [ "$REQUEST_METHOD" = "DELETE" ] && [ "$valid" == "0" ]; then
     echo $REQUEST_URI skal slettes
     echo
     
-    epost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db)
+    # eposten tilhørende sesjonen
+    ichiepost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID=$sesjonsID;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+    #echo ICHIEPOST: $ichiepost
 
     database=$(echo $REQUEST_URI | cut -d / -f 3)
-    echo DATABASE: $database
+    #echo DATABASE: $database
     tabell=$(echo $REQUEST_URI | cut -d / -f 4)
-    echo TABELL: $tabell
+    #echo TABELL: $tabell
     id=$(echo $REQUEST_URI | cut -d / -f 5)
-    echo ID:        $id
-   
+    #echo ID:        $id
+    
+    # eposten tilhørende den som har lagd diktet
+    niepost=$(echo "SELECT epostadresse FROM Dikt WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+    #echo NIEPOST: $niepost
+    
     if [[ -n "${id}" ]]; then
-	echo "DELETE FROM Dikt WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db # Slette et eget dikt, epostadresse må også samsvare?
-    fi
-	#else echo "DELETE FROM Dikt WHERE epostadresse='$epost';" | sqlite3 /usr/local/apache/sqlite/database.db # Slette alle egne dikt, epostadresse må også samsvare?
-
+		# Slett spesifikt dikt pekt på med diktID
+		if [ $niepost = $ichiepost ]; then
+			#antall=$(echo "SELECT count(dikt) FROM Dikt;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+			#echo ANTALL: $antall
+			echo "DELETE FROM Dikt WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db # Slette et eget dikt, epostadresse må også samsvare?
+			#echo "VACUUM;" | sqlite3 /usr/local/apache2/sqlite/database.db
+			#echo "ALTER TABLE Dikt AUTO_INCREMENT=$antall;" | sqlite3 /usr/local/apache2/sqlite/database.db
+		else 
+			echo "Action is not allowed."
+		fi
+		#else echo "DELETE FROM Dikt WHERE epostadresse='$epost';" | sqlite3 /usr/local/apache/sqlite/database.db # Slette alle egne dikt, epostadresse må også samsvare?
+	else 
+		echo "DELETE FROM Dikt WHERE epostadresse='$ichiepost';" | sqlite3 /usr/local/apache2/sqlite/database.db
+	fi
+		
     # curl -X DELETE localhost:8080/sqlite/database.db/2
 fi
 
