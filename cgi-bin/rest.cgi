@@ -4,7 +4,7 @@
 
 
 #echo "Set-Cookie:yummycookie=$sessionidentity"
-#echo "Content-type:text/plain;charset=utf-8"
+#echo "Content-type:text/xml, application/xml;charset=utf-8"
 #echo
 # Lage en "innloggingsfunksjon" ved å sjekke passord mot e-postadresse, og sette sesjonsID
 # Variabel som avgjør om bruker er "innlogget"| kanskje cookie kan erstatte den?
@@ -22,10 +22,12 @@ bruker=$(xmlstarlet sel -t -v '//bruker' /usr/local/apache2/xml/transition.xml)
 # Hvis cookie allerede er sendt med klientens forespørsel 
 if [ -n "$HTTP_COOKIE" ]; then
 	
-	echo "Set-Cookie:yummycookie='$HTTP_COOKIE'"
-	echo "Content-type:text/plain;charset=utf-8"
+	echo "Set-Cookie: $HTTP_COOKIE"
+	echo "Content-type:text/xml, application/xml;charset=utf-8"
 	echo
 	echo HTTP_COOKIE: $HTTP_COOKIE
+	sesjonsID=$(echo $HTTP_COOKIE | cut -d = -f 2)
+	echo sesjonsID: $sesjonsID
 	valid=0;
 	
 	
@@ -56,18 +58,18 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 		sessionidentity=$(echo "SELECT max(sesjonsID) FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		#echo SESSIONIDENTITY: $sessionidentity
 		valid=0;
-		echo "Set-Cookie:yummycookie='$sessionidentity'"
-		echo "Content-type:text/plain;charset=utf-8"
+		echo "Set-Cookie:yummycookie=$sessionidentity"
+		echo "Content-type:text/xml, application/xml;charset=utf-8"
 		echo
 		#echo VALID: $valid
 		#echo HTTP_COOKIE: $HTTP_COOKIE
 	else
-		echo "Content-type:text/plain;charset=utf-8"
+		echo "Content-type:text/xml, application/xml;charset=utf-8"
 		echo
 		echo "Incorrect password."
     fi
 else
-	echo "Content-type:text/plain;charset=utf-8"
+	echo "Content-type:text/xml, application/xml;charset=utf-8"
 	echo
 	echo "nub"
 fi
@@ -100,9 +102,25 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 
     # Dirigere serveren til å hente ressursen
     if [[ -n "${id}" ]]; then
-		echo SELECT diktID, $tabell FROM $tabell where diktID=$id | sqlite3 /usr/local/apache2/sqlite/database.db
+		dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+		epostadresse=$(echo "SELECT epostadresse FROM $tabell where diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+		xmlcont="<dikt><diktID>$id</diktID><dikt>$dikt</dikt><epostadresse>$epostadresse</epostadresse></dikt>"
+		echo $xmlcont
     else
-		echo SELECT diktID, $tabell FROM $tabell | sqlite3 /usr/local/apache2/sqlite/database.db
+		antall=$(echo "SELECT max(diktID) FROM $tabell;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+		echo ANTALL: $antall
+		
+		dikttall=1
+		echo DIKTTALL: $dikttall
+		while [ $dikttall -le $antall ]
+		do
+			dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$dikttall;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+			epostadresse=$(echo "SELECT epostadresse FROM $tabell where diktID=$dikttall;" | sqlite3 /usr/local/apache2/sqlite/database.db)
+			xmlcont="<dikt><diktID>$dikttall</diktID><dikt>$dikt</dikt><epostadresse>$epostadresse</epostadresse></dikt>"
+			echo $xmlcont
+			let "dikttall += 1"
+		done
+		#echo SELECT diktID, $tabell, epostadresse FROM $tabell | sqlite3 /usr/local/apache2/sqlite/database.db
     fi
 fi
 
@@ -117,8 +135,12 @@ if [ "$REQUEST_METHOD" = "POST" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; th
    echo
    echo STRENG: $streng
    
+   # Hvis det må over på XML logikk
    #echo $streng > /usr/local/apache2/transition.xml
-
+   
+   epost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db)
+   echo EPOST: $epost
+   
    samling=$(echo $streng | awk -F"<" '{print $2}' | cut -d ">" -f 0)
    echo SAMLING: $samling
 
@@ -131,7 +153,7 @@ if [ "$REQUEST_METHOD" = "POST" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; th
    echo TABELL: $tabell
 
    # Diktet må få epostadressen til brukeren som legger det inn! 
-   echo "INSERT INTO Dikt (dikt, epostadresse) VALUES ('$dikt', 'nob@nob1.com');" | sqlite3 /usr/local/apache2/sqlite/database.db
+   echo "INSERT INTO Dikt (dikt, epostadresse) VALUES ('$dikt', '$epost');" | sqlite3 /usr/local/apache2/sqlite/database.db
 fi
 
 # Må være innlogget for å kunne gjøre PUT (Endre egne dikt)
@@ -143,6 +165,8 @@ if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ]; then
    #streng=$(head -c $CONTENT_LENGTH)
    echo
    echo STRENG: $streng
+   
+   epost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db)
 
    samling=$(echo $streng | awk -F"<" '{print $2}' | cut -d ">" -f 0)
    echo SAMLING: $samling
@@ -165,13 +189,15 @@ fi
 if [ "$REQUEST_METHOD" = "DELETE" ] && [ "$valid" == "0" ]; then
     echo $REQUEST_URI skal slettes
     echo
+    
+    epost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db)
 
-   database=$(echo $REQUEST_URI | cut -d / -f 3)
-   echo DATABASE: $database
-   tabell=$(echo $REQUEST_URI | cut -d / -f 4)
-   echo TABELL: $tabell
-   id=$(echo $REQUEST_URI | cut -d / -f 5)
-   echo ID:        $id
+    database=$(echo $REQUEST_URI | cut -d / -f 3)
+    echo DATABASE: $database
+    tabell=$(echo $REQUEST_URI | cut -d / -f 4)
+    echo TABELL: $tabell
+    id=$(echo $REQUEST_URI | cut -d / -f 5)
+    echo ID:        $id
    
     if [[ -n "${id}" ]]; then
 	echo "DELETE FROM Dikt WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db # Slette et eget dikt, epostadresse må også samsvare?
