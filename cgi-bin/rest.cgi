@@ -4,8 +4,8 @@
 
 
 #echo "Set-Cookie:yummycookie=$sessionidentity"
-echo "Content-type:application/xml;charset=utf-8"
-echo
+#echo "Content-type:application/xml;charset=utf-8"
+#echo
 # Lage en "innloggingsfunksjon" ved å sjekke passord mot e-postadresse, og sette sesjonsID
 # Variabel som avgjør om bruker er "innlogget"| kanskje cookie kan erstatte den?
 valid=1;
@@ -19,7 +19,13 @@ echo $streng > /usr/local/apache2/xml/transition.xml
 
 # Sjekke om det skal logges inn
 bruker=$(xmlstarlet sel -t -v '//bruker' /usr/local/apache2/xml/transition.xml)
-echo BRUKER: $bruker
+#echo BRUKER: $bruker
+
+# Statiske variabler for XSD logikk
+header="<?xml version=\"1.0\"?>"
+rot=$(echo $streng | cut -d ">" -f 1)
+default="xmlns=\"http://localhost\""
+next="xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
 
 # Hvis cookie allerede er sendt med klientens forespørsel 
 if [ -n "$HTTP_COOKIE" ]; then
@@ -37,23 +43,17 @@ if [ -n "$HTTP_COOKIE" ]; then
 elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 	
 	# Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
-	header="<?xml version=\"1.0\"?>"
-	rot=$(echo $streng | cut -d ">" -f 1)
-	#echo STRENG: $streng
-	#echo ROT: $rot
-	#newline=$(echo -e " ")
-	#rotslutt="</bruker>"
-	default="xmlns=\"http://localhost\""
-	next="xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
 	location="xsi:schemaLocation=\"http://localhost/www innlogging.xsd\">"
+	
+	#Droppe <bruker> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
 	ny_streng=$(echo $streng | cut -d ">" -f 2,3,4,5,6,7,8,9,10,11)
-	#echo NY_STRENG: $ny_streng
-	#header=$(printf "<?xml version=\"1.0\"?>\n<bruker\nxmlns=\"http://localhost\"\nxmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n
-	#xsi:schemaLocation=\"http://localhost/www innlogging.xsd\">\n")
 	innehald=$(printf "%s\n" "$header" "" "$rot" "$default" "$next" "$location" "$ny_streng")
-	#printf "%s\n" "$header" "$rot" "$default"
-	echo "$innehald"
-	echo 
+	#echo "$innehald"
+	#echo 
+	
+	#validator=$(curl -v -d "$innehald" http://172.17.0.1/innlogging.xsd)
+	#validator=$(curl -v -d "$innehald" localhost/innlogging.xsd)
+	#echo VALIDATOR: "$validator"
 	
 	# Hente epostadresse fra XML-fila (kommandolinja)
 	epost=$(xmlstarlet sel -t -v '//epostadresse' /usr/local/apache2/xml/transition.xml)
@@ -124,14 +124,24 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     #echo TABELL:    $tabell
     id=$(echo $REQUEST_URI | cut -d / -f 5)
     #echo ID:        $id
-    
-    #[ -z "$id" ] && echo "NULL"
 
     # Dirigere serveren til å hente ressursen/alle ressursene
     if [[ -n "${id}" ]]; then
 		dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		epostadresse=$(echo "SELECT epostadresse FROM $tabell where diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		xmlcont="<dikt><diktID>$id</diktID><diktu>$dikt</diktu><epostadresse>$epostadresse</epostadresse></dikt>"
+		
+		# Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
+		location="xsi:schemaLocation=\"http://localhost/www hentdikt.xsd\">"
+		#Droppe <dikt> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
+		rot=$(echo $xmlcont | cut -d ">" -f 1)
+		#echo ROT: $rot
+		ny_streng=$(echo $xmlcont | cut -d ">" -f 2,3,4,5,6,7,8,9)
+		#echo NY_STRENG: $ny_streng
+		innehald=$(printf "%s\n" "$header" "" "$rot" "$default" "$next" "$location" "$ny_streng")
+		#echo INNEHALD: "$innehald"
+		#echo 
+		
 		echo $xmlcont
     else
 		antall=$(echo "SELECT MAX(diktID) FROM $tabell;" | sqlite3 /usr/local/apache2/sqlite/database.db)
@@ -147,10 +157,20 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 				continue
 			fi
 			xmlcont="<dikt><diktID>$dikttall</diktID><diktu>$dikt</diktu><epostadresse>$epostadresse</epostadresse></dikt>"
+			# Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
+			location="xsi:schemaLocation=\"http://localhost/www hentdikt.xsd\">"
+	
+			#Droppe <dikt> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
+			rot=$(echo $xmlcont | cut -d ">" -f 1)
+			#echo ROT: $rot
+			ny_streng=$(echo $xmlcont | cut -d ">" -f 2,3,4,5,6,7,8,9)
+			#echo NY_STRENG: $ny_streng
+			innehald=$(printf "%s\n" "$header" "" "$rot" "$default" "$next" "$location" "$ny_streng")
+			#echo INNEHALD: "$innehald"
+			#echo 
 			echo $xmlcont
 			let "dikttall += 1"
 		done
-		#echo SELECT diktID, $tabell, epostadresse FROM $tabell | sqlite3 /usr/local/apache2/sqlite/database.db
     fi
 fi
 
@@ -166,6 +186,16 @@ if [ "$REQUEST_METHOD" = "POST" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; th
    
    # Hvis det må over på XML logikk
    #echo $streng > /usr/local/apache2/transition.xml
+   
+   # Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
+   location="xsi:schemaLocation=\"http://localhost/www hentdikt.xsd\">"
+   #Droppe <bruker> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
+   #echo ROT: $rot
+   ny_streng=$(echo $streng | cut -d ">" -f 2,3,4,5)
+   #echo NY_STRENG: $ny_streng
+   innehald=$(printf "%s\n" "$header" "" "$rot" "$default" "$next" "$location" "$ny_streng")
+   #echo INNEHALD: "$innehald"
+   #echo 
    
    epost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID=$sesjonsID;" | sqlite3 /usr/local/apache2/sqlite/database.db)
    #echo EPOST: $epost
@@ -194,6 +224,15 @@ if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ]; then
    #streng=$(head -c $CONTENT_LENGTH)
    #echo
    #echo STRENG: $streng
+   
+   # Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
+   location="xsi:schemaLocation=\"http://localhost/www hentdikt.xsd\">" 
+   #Droppe <bruker> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
+   #echo ROT: $rot
+   ny_streng=$(echo $streng | cut -d ">" -f 2,3,4,5,6,7,8,9,10,11)
+   innehald=$(printf "%s\n" "$header" "" "$rot" "$default" "$next" "$location" "$ny_streng")
+   #echo INNEHALD: "$innehald"
+   #echo 
    
    # eposten tilhørende sesjonen
    ichiepost=$(echo "SELECT epostadresse FROM Sesjon WHERE sesjonsID=$sesjonsID;" | sqlite3 /usr/local/apache2/sqlite/database.db)
@@ -276,4 +315,4 @@ fi
       #// curl -b "cookies.txt" -X DELETE -v localhost:8080/sqlite/database.db/dikt
       
       #// passord og epostadresse
-#// curl -c "cookies.txt" -v -d "<bruker><epostadresse>am.no</epostadresse><passordhash>ananas3pai</passordhash><fornavn>Kaare</fornavn><etternavn>Hagen</etternavn></bruker>" localhost:8080/sqlite/database.db/dikt
+	#// curl -c "cookies.txt" -v -d "<bruker><epostadresse>am.no</epostadresse><passordhash>ananas3pai</passordhash><fornavn>Kaare</fornavn><etternavn>Hagen</etternavn></bruker>" localhost:8080/sqlite/database.db/dikt
