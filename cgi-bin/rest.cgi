@@ -4,8 +4,8 @@
 
 
 #echo "Set-Cookie:yummycookie=$sessionidentity"
-#echo "Content-type:text/xml, application/xml;charset=utf-8"
-#echo
+echo "Content-type:application/xml;charset=utf-8"
+echo
 # Lage en "innloggingsfunksjon" ved å sjekke passord mot e-postadresse, og sette sesjonsID
 # Variabel som avgjør om bruker er "innlogget"| kanskje cookie kan erstatte den?
 valid=1;
@@ -13,17 +13,20 @@ streng=$(head -c $CONTENT_LENGTH)
 #echo STRENG: $streng
 
 # En fil som mates med CLI XML fra klientens forespørsel
+#echo "<?xml version="1.0"?>" > /usr/local/apache2/xml/transition.xml
+#echo "<!DOCTYPE bruker SYSTEM \"http://localhost/transition.dtd\">" >> /usr/local/apache2/xml/transition.xml
 echo $streng > /usr/local/apache2/xml/transition.xml
 
 # Sjekke om det skal logges inn
 bruker=$(xmlstarlet sel -t -v '//bruker' /usr/local/apache2/xml/transition.xml)
-#echo BRUKER: $bruker
+echo BRUKER: $bruker
 
 # Hvis cookie allerede er sendt med klientens forespørsel 
 if [ -n "$HTTP_COOKIE" ]; then
 	
 	echo "Set-Cookie: $HTTP_COOKIE"
-	echo "Content-type:text/xml, application/xml;charset=utf-8"
+	#echo "Content-type:text/xml, application/xml;charset=utf-8"
+	echo "Content-type:application/xml;charset=utf-8"
 	echo
 	#echo HTTP_COOKIE: $HTTP_COOKIE
 	sesjonsID=$(echo $HTTP_COOKIE | cut -d = -f 2)
@@ -32,6 +35,26 @@ if [ -n "$HTTP_COOKIE" ]; then
 	
 	
 elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
+	
+	# Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
+	header="<?xml version=\"1.0\"?>"
+	rot=$(echo $streng | cut -d ">" -f 1)
+	#echo STRENG: $streng
+	#echo ROT: $rot
+	#newline=$(echo -e " ")
+	#rotslutt="</bruker>"
+	default="xmlns=\"http://localhost\""
+	next="xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
+	location="xsi:schemaLocation=\"http://localhost/www innlogging.xsd\">"
+	ny_streng=$(echo $streng | cut -d ">" -f 2,3,4,5,6,7,8,9,10,11)
+	#echo NY_STRENG: $ny_streng
+	#header=$(printf "<?xml version=\"1.0\"?>\n<bruker\nxmlns=\"http://localhost\"\nxmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n
+	#xsi:schemaLocation=\"http://localhost/www innlogging.xsd\">\n")
+	innehald=$(printf "%s\n" "$header" "" "$rot" "$default" "$next" "$location" "$ny_streng")
+	#printf "%s\n" "$header" "$rot" "$default"
+	echo "$innehald"
+	echo 
+	
 	# Hente epostadresse fra XML-fila (kommandolinja)
 	epost=$(xmlstarlet sel -t -v '//epostadresse' /usr/local/apache2/xml/transition.xml)
 
@@ -59,19 +82,22 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 		#echo SESSIONIDENTITY: $sessionidentity
 		valid=0;
 		echo "Set-Cookie:yummycookie=$sessionidentity"
-		echo "Content-type:text/xml, application/xml;charset=utf-8"
+		#echo "Content-type:text/xml, application/xml;charset=utf-8"
+		echo "Content-type:application/xml;charset=utf-8"
 		echo
 		#echo VALID: $valid
 		#echo HTTP_COOKIE: $HTTP_COOKIE
 	else
-		echo "Content-type:text/xml, application/xml;charset=utf-8"
+		#echo "Content-type:text/xml, application/xml;charset=utf-8"
+		echo "Content-type:application/xml;charset=utf-8"
 		echo
 		echo "Incorrect password."
     fi
 else
-	echo "Content-type:text/xml, application/xml;charset=utf-8"
+	#echo "Content-type:text/xml, application/xml;charset=utf-8"
+	#echo "Content-type:application/xml;charset=utf-8"
 	echo
-	#echo "nub"
+	#echo "hoy"
 fi
 
 # Skriver ut 'http-header' for 'plain-text' SOM SKAL VÆRE SLUTTEN AV HTTP HODET MED PÅFØLGENDE TOM LINJE FOR HTTP KROPPEN
@@ -86,17 +112,18 @@ fi
 #echo QUERY_STRING:	$QUERY_STRING
 #echo CONTENT_LENGTH:	$CONTENT_LENGTH
 #echo CONTENT_TYPE       $CONTENT_TYPE
+#echo HTTP_ACCEPT: $HTTP_ACCEPT
 #echo HTTP_COOKIE:       $HTTP_COOKIE
 
 # GET skal kunne gjøres uten å være innlogget, både ett bestemt dikt eller alle dikt
 if [ "$REQUEST_METHOD" = "GET" ]; then
-    echo $REQUEST_URI skal hentes
+    #echo $REQUEST_URI skal hentes
     database=$(echo $REQUEST_URI | cut -d / -f 3)
-    echo DATABASE:  $database
+    #echo DATABASE:  $database
     tabell=$(echo $REQUEST_URI | cut -d / -f 4)
-    echo TABELL:    $tabell
+    #echo TABELL:    $tabell
     id=$(echo $REQUEST_URI | cut -d / -f 5)
-    echo ID:        $id
+    #echo ID:        $id
     
     #[ -z "$id" ] && echo "NULL"
 
@@ -104,7 +131,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     if [[ -n "${id}" ]]; then
 		dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		epostadresse=$(echo "SELECT epostadresse FROM $tabell where diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
-		xmlcont="<dikt><diktID>$id</diktID><dikt>$dikt</dikt><epostadresse>$epostadresse</epostadresse></dikt>"
+		xmlcont="<dikt><diktID>$id</diktID><diktu>$dikt</diktu><epostadresse>$epostadresse</epostadresse></dikt>"
 		echo $xmlcont
     else
 		antall=$(echo "SELECT MAX(diktID) FROM $tabell;" | sqlite3 /usr/local/apache2/sqlite/database.db)
@@ -119,7 +146,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 				let "dikttall += 1"
 				continue
 			fi
-			xmlcont="<dikt><diktID>$dikttall</diktID><dikt>$dikt</dikt><epostadresse>$epostadresse</epostadresse></dikt>"
+			xmlcont="<dikt><diktID>$dikttall</diktID><diktu>$dikt</diktu><epostadresse>$epostadresse</epostadresse></dikt>"
 			echo $xmlcont
 			let "dikttall += 1"
 		done
@@ -135,7 +162,7 @@ if [ "$REQUEST_METHOD" = "POST" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; th
 
    # skriver HTTP-hode
    # streng=$(head -c $CONTENT_LENGTH)
-   echo $streng
+   #echo $streng
    
    # Hvis det må over på XML logikk
    #echo $streng > /usr/local/apache2/transition.xml
@@ -235,6 +262,18 @@ if [ "$REQUEST_METHOD" = "DELETE" ] && [ "$valid" == "0" ]; then
 fi
 
 if [ "$valid" != "0" ]; then
-	echo "You are not logged in."
+	#echo "You are not logged in."
 fi
 
+	  # GET
+      #// curl localhost:8080/sqlite/database.db/dikt
+      #// POST
+      #// curl -d "<dikt><tittel>Med iskrem i hånd</tittel></dikt>" localhost:8080/sqlite/database.db/dikt
+      #// curl -b "cookies.txt" -v -d "<dikt><tittel>Gooli cute cute</tittel></dikt>" localhost:8080/sqlite/database.db/dikt
+      #// PUT 
+      #// curl -b "cookies.txt" -X PUT -v -d "<dikt><tittel>Bjørne børne</tittel></dikt>" localhost:8080/sqlite/database.db/dikt
+      #// DELETE 
+      #// curl -b "cookies.txt" -X DELETE -v localhost:8080/sqlite/database.db/dikt
+      
+      #// passord og epostadresse
+#// curl -c "cookies.txt" -v -d "<bruker><epostadresse>am.no</epostadresse><passordhash>ananas3pai</passordhash><fornavn>Kaare</fornavn><etternavn>Hagen</etternavn></bruker>" localhost:8080/sqlite/database.db/dikt
