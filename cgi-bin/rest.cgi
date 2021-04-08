@@ -27,8 +27,8 @@ rot=$(echo $streng | cut -d ">" -f 1)
 default="xmlns=\"http://localhost\""
 next="xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
 
-# Hvis cookie allerede er sendt med klientens forespørsel 
-if [ -n "$HTTP_COOKIE" ]; then
+# Hvis cookie allerede er sendt med klientens forespørsel og ikke inneholder informasjon for ut-/innlogging
+if [ -n "$HTTP_COOKIE" ] && [ -z "$bruker" ]; then
 	
 	echo "Set-Cookie: $HTTP_COOKIE"
 	#echo "Content-type:text/xml, application/xml;charset=utf-8"
@@ -36,10 +36,16 @@ if [ -n "$HTTP_COOKIE" ]; then
 	echo
 	#echo HTTP_COOKIE: $HTTP_COOKIE
 	sesjonsID=$(echo $HTTP_COOKIE | cut -d = -f 2)
-	#echo sesjonsID: $sesjonsID
+	#epost=$(xmlstarlet sel -t -v '//epostadresse' /usr/local/apache2/xml/transition.xml)
+	echo sesjonsID: $sesjonsID
 	valid=0;
+	echo STRENG: $streng
+	echo EPOST: $epost
+	echo REQUEST_METHOD:	$REQUEST_METHOD
+	echo BRUKER: $bruker
 	
-	
+# Hvis det er en variabel i bruker og metoden er POST så er det innlogging
+# curl -c "cookies.txt" -v -d "<bruker><epostadresse>am.no</epostadresse><passordhash>ananas3pai</passordhash><fornavn>Kaare</fornavn><etternavn>Hagen</etternavn></bruker>" localhost:8080/sqlite/database.db/dikt
 elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 	
 	# Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
@@ -58,13 +64,13 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 	# Hente epostadresse fra XML-fila (kommandolinja)
 	epost=$(xmlstarlet sel -t -v '//epostadresse' /usr/local/apache2/xml/transition.xml)
 
-	#echo EPOST: $epost
+	echo EPOST: $epost
 
 	# Hente passordet fra XML-fila (kommandolinja) og deretter kjøre MD5 for å sjekke hashen
 
 	passord=$(xmlstarlet sel -t -v '//passordhash' /usr/local/apache2/xml/transition.xml)
 
-	#echo PASSORD: $passord
+	echo PASSORD: $passord
 
 	pwHash=$(echo -n $passord | md5sum)
 	#echo pwHash: $pwHash
@@ -85,17 +91,40 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 		#echo "Content-type:text/xml, application/xml;charset=utf-8"
 		echo "Content-type:application/xml;charset=utf-8"
 		echo
-		#echo VALID: $valid
-		#echo HTTP_COOKIE: $HTTP_COOKIE
+		echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
+		echo VALID: $valid
+		echo HTTP_COOKIE: $HTTP_COOKIE
+		echo STRENG: $streng
+		echo EPOST: $epost
+		echo REQUEST_METHOD:	$REQUEST_METHOD
+		echo BRUKER: $bruker
 	else
 		#echo "Content-type:text/xml, application/xml;charset=utf-8"
 		echo "Content-type:application/xml;charset=utf-8"
 		echo
 		echo "Incorrect password."
     fi
+# Hvis det er en variabel i bruker, en cookie i headeren og metoden er DELETE så er det utlogging
+# curl -b "cookies.txt" -X DELETE -d "<bruker><epostadresse>am.no>/epostadresse<passordhash>ananas3pai</passordhash></bruker>" localhost:8080/sqlite/database.db/dikt
+elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "DELETE" ] && [ -n "$HTTP_COOKIE" ]; then
+	
+	# Hente epostadresse fra XML-fila (kommandolinja)
+	epost=$(xmlstarlet sel -t -v '//epostadresse' /usr/local/apache2/xml/transition.xml)
+	
+	sesjonsID=$(echo $HTTP_COOKIE | cut -d = -f 2)
+	echo sesjonsID: $sesjonsID
+	
+	echo "Content-type:application/xml;charset=utf-8"
+	echo
+	
+	echo "DELETE FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db
+	valid=1
+	echo "Slette OK."
+	echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
+	
 else
 	#echo "Content-type:text/xml, application/xml;charset=utf-8"
-	#echo "Content-type:application/xml;charset=utf-8"
+	echo "Content-type:application/xml;charset=utf-8"
 	echo
 	#echo "hoy"
 fi
@@ -116,6 +145,7 @@ fi
 #echo HTTP_COOKIE:       $HTTP_COOKIE
 
 # GET skal kunne gjøres uten å være innlogget, både ett bestemt dikt eller alle dikt
+# curl localhost:8080/sqlite/database.db/dikt/1
 if [ "$REQUEST_METHOD" = "GET" ]; then
     #echo $REQUEST_URI skal hentes
     database=$(echo $REQUEST_URI | cut -d / -f 3)
@@ -175,6 +205,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 fi
 
 # Må være innlogget for å kunne gjøre POST (legge til nytt dikt)
+# curl -d "<dikt><tittel>Med iskrem i hånd</tittel></dikt>" localhost:8080/sqlite/database.db/dikt
+# curl -b "cookies.txt" -v -d "<dikt><tittel>Gooli cute cute</tittel></dikt>" localhost:8080/sqlite/database.db/dikt
 if [ "$REQUEST_METHOD" = "POST" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; then
    echo Følgende skal settes inn i $REQUEST_URI:
    echo
@@ -216,7 +248,8 @@ if [ "$REQUEST_METHOD" = "POST" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; th
 fi
 
 # Må være innlogget for å kunne gjøre PUT (Endre egne dikt)
-if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ]; then
+# curl -b "cookies.txt" -X PUT -v -d "<dikt><tittel>Bjørne børne</tittel></dikt>" localhost:8080/sqlite/database.db/dikt
+if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; then
    echo $REQUEST_URI skal endres slik:
    echo
 
@@ -262,7 +295,7 @@ if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ]; then
 fi
 
 # Må være innlogget for å kunne gjøre DELETE (Slette et eget dikt eller alle egne dikt)
-if [ "$REQUEST_METHOD" = "DELETE" ] && [ "$valid" == "0" ]; then
+if [ "$REQUEST_METHOD" = "DELETE" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; then
     echo $REQUEST_URI skal slettes
     echo
     
