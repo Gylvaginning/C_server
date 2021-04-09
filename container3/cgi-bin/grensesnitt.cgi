@@ -44,12 +44,16 @@ elif [ "$metodevalg" == "Logg+ut" ]; then
 	#responseheader=$(curl -b "$COOKIE" -X DELETE -i -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://172.17.0.3/sqlite/database.db/dikt)
 	respons=$(curl -b "$HTTP_COOKIE" -X DELETE -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://172.17.0.3/sqlite/database.db/dikt)
 	
-	echo "Set-Cookie:sesjon=; expires=Thu, 01 Jan 1970 00:00:00 GMT;"
+	echo "Set-Cookie:yummycookie=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+	#echo "Content-type:text/html;charset=utf-8"
+	#echo
 	
 else  
 	metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
 	#echo METODE: $metode
 	#echo -e "|||"
+	#echo "Content-type:text/html;charset=utf-8"
+	#echo
 fi
 
 echo "Content-type:text/html;charset=utf-8"
@@ -150,6 +154,7 @@ EOF
 		diktID=$(echo $BODY | awk -F "diktid=" '{print $4}')
 		diktID=$(echo $diktID | awk -F "&" '{print $1}')
 		echo diktID: $diktID
+	else
 		
 	fi
 
