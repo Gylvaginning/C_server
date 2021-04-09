@@ -96,7 +96,7 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 		echo HTTP_COOKIE: $HTTP_COOKIE
 		echo STRENG: $streng
 		echo EPOST: $epost
-		echo REQUEST_METHOD:	$REQUEST_METHOD
+		echo REQUEST_METHOD: $REQUEST_METHOD
 		echo BRUKER: $bruker
 	else
 		#echo "Content-type:text/xml, application/xml;charset=utf-8"
