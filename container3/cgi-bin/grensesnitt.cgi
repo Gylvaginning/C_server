@@ -5,9 +5,12 @@
 
 read BODY
 
+kjeks=$HTTP_COOKIE
 metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
 
-if [ "$metodevalg" == "Logg+inn" ]; then
+# Hvis det allerede eksisterer en Cookie hos klienten på dette tidspunktet så skal det ikke lages en cookie til
+if [ "$metodevalg" == "Logg+inn" ] && [ -z "$kjeks" ]; then
+	
 	epost=$(echo $BODY | awk -F "epost=" '{print $2}')
 	epost=$(echo $epost | awk -F "&" '{print $1}')
 	#echo EPOST: $epost
@@ -60,6 +63,7 @@ fi
 echo "Content-type:text/html;charset=utf-8"
 echo
 
+echo KJEKS: $kjeks
 
 #echo RESPONSEHEADER: $responseheader
 #echo BODY: $body
@@ -163,15 +167,22 @@ EOF
 		dikt=$(echo $dikt | tr + ' ' )
 		echo DIKT: $dikt
 		
-		put=$(curl -b "$HTTP_COOKIE" -X PUT -d "<dikt><tittel>$dikt</tittel></dikt>" http://172.17.0.3/sqlite/database.db/dikt)
+		put=$(curl -b "$HTTP_COOKIE" -X PUT -d "<dikt><tittel>$dikt</tittel></dikt>" http://172.17.0.3/sqlite/database.db/dikt/$diktID)
 		echo PUT: $put
+	fi
 		
-	elif [ "$metode" == "DELETE" ]; then
+	if [ "$metode" == "DELETE" ]; then
 		diktID=$(echo $BODY | awk -F "diktid=" '{print $4}')
 		diktID=$(echo $diktID | awk -F "&" '{print $1}')
 		echo diktID: $diktID
-	else
 		
+		if [ -n "$diktID" ]; then
+			slett=$(curl -b "$HTTP_COOKIE" -X DELETE http://172.17.0.3/sqlite/database.db/dikt/$diktID)
+			echo SLETT: $slett
+		else
+			slett=$(curl -b "$HTTP_COOKIE" -X DELETE http://172.17.0.3/sqlite/database.db/dikt)
+			echo SLETT: $slett
+		fi
 	fi
 
 
