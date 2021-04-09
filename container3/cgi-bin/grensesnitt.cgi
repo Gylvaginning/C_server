@@ -148,8 +148,11 @@ EOF
 		dikt=$(echo $dikt | tr + ' ' )
 		echo DIKT: $dikt
 		#dikt=$(echo $BODY | awk -F "dikt=" '{print $2}')
+		post=$(curl -b "$HTTP_COOKIE" -d "<dikt><tittel>$dikt</tittel></dikt>" http://172.17.0.3/sqlite/database.db/dikt)
+		echo POST: $post
+	fi
 		
-	elif [ "$metode" == "PUT" ]; then
+	if [ "$metode" == "PUT" ]; then
 		diktID=$(echo $BODY | awk -F "diktid=" '{print $3}')
 		diktID=$(echo $diktID | awk -F "&" '{print $1}')
 		echo diktID: $diktID
@@ -159,6 +162,9 @@ EOF
 		dikt=$(echo $dikt | awk -F "&" '{print $1}')
 		dikt=$(echo $dikt | tr + ' ' )
 		echo DIKT: $dikt
+		
+		put=$(curl -b "$HTTP_COOKIE" -X PUT -d "<dikt><tittel>$dikt</tittel></dikt>" http://172.17.0.3/sqlite/database.db/dikt)
+		echo PUT: $put
 		
 	elif [ "$metode" == "DELETE" ]; then
 		diktID=$(echo $BODY | awk -F "diktid=" '{print $4}')
