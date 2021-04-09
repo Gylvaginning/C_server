@@ -1,19 +1,62 @@
 #!/bin/sh
-echo "Content-type:text/html;charset=utf-8"
-echo
+
+#echo "Content-type:text/html;charset=utf-8"
+#echo
 
 read BODY
 
-#if [ "REQUEST_METHOD" = "POST" ]; then
-   #Leser http-kroppen inn i kropp-variabel
-#   read -n $CONTENT_LENGTH kropp <&0
+metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
 
-#fi
+if [ "$metodevalg" == "Logg+inn" ]; then
+	epost=$(echo $BODY | awk -F "epost=" '{print $2}')
+	epost=$(echo $epost | awk -F "&" '{print $1}')
+	#echo EPOST: $epost
+	
+	#echo -e "|||"
+	passord=$(echo $BODY | awk -F "passord=" '{print $2}')
+	passord=$(echo $passord | awk -F "&" '{print $1}')
+	#echo PASSORD: $passord
+	#echo "Du forsøker logge inn med eposten: $epost og passordet: $passord"
+	
+	# Send oppgitte data til REST API på container numerounodocker http://172.17.0.3/sqlite/database.db/dikt
+	# echo curl -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://localhost:8081/sqlite/database.db/dikt
+	responseheaders=$(curl -i -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://172.17.0.3/sqlite/database.db/dikt)
+	#echo RESPONSEHEADERS: $responseheaders
+	
+	# Hente ut cookie verdien satt av server
+	cookie=$(echo $responseheaders | awk -F "Set-Cookie:" '{print $2}')
+	cookie=$(echo $cookie | awk -F " " '{print $1}')
+	#echo COOKIE: $cookie
+	echo "Set-Cookie:$cookie"
+	#echo "Content-type:text/html;charset=utf-8"
+	#echo
+	
+elif [ "$metodevalg" == "Logg+ut" ]; then
+	epost=$(echo $BODY | awk -F "epost=" '{print $2}')
+	epost=$(echo $epost | awk -F "&" '{print $1}')
+	
+	passord=$(echo $BODY | awk -F "passord=" '{print $2}')
+	passord=$(echo $passord | awk -F "&" '{print $1}')
+	#echo "Du forsøker logge ut med eposten: $epost og passordet: $passord"
+	
+	# Hente ut cookie verdi sendt av klient
+	#responseheader=$(curl -i http://127.0.0.1/cgi-bin/grensesnitt.cgi)
+	#responseheader=$(curl -b "$COOKIE" -X DELETE -i -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://172.17.0.3/sqlite/database.db/dikt)
+	respons=$(curl -b "$HTTP_COOKIE" -X DELETE -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://172.17.0.3/sqlite/database.db/dikt)
+	
+	echo "Set-Cookie:sesjon=; expires=Thu, 01 Jan 1970 00:00:00 GMT;"
+	
+else  
+	metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
+	#echo METODE: $metode
+	#echo -e "|||"
+fi
 
-# Må finne ut hvilken
-#metode=$(echo $kropp | cut -d '')
-#echo $metode
-#echo BODY: $BODY
+echo "Content-type:text/html;charset=utf-8"
+echo
+
+#echo RESPONSEHEADER: $responseheader
+#echo BODY: $body
 
 cat << EOF
 <!DOCTYPE html>
@@ -73,47 +116,11 @@ EOF
    
 # echo $BODY
 #echo -e "|||"
-metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
+# metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
 # echo METODEVALG: $metodevalg
-echo -e "|||"
-
-
-if [ "$metodevalg" == "Logg+inn" ]; then
-	epost=$(echo $BODY | awk -F "epost=" '{print $2}')
-	epost=$(echo $epost | awk -F "&" '{print $1}')
-	echo EPOST: $epost
+#echo -e "|||"
 	
-	echo -e "|||"
-	passord=$(echo $BODY | awk -F "passord=" '{print $2}')
-	passord=$(echo $passord | awk -F "&" '{print $1}')
-	echo PASSORD: $passord
-	echo "Du forsøker logge inn med eposten: $epost og passordet: $passord"
-	
-	# Send oppgitte data til REST API på container numerounodocker http://172.17.0.3/sqlite/database.db/dikt
-	# echo curl -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://localhost:8081/sqlite/database.db/dikt
-	responseheaders=$(curl -i -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://172.17.0.3/sqlite/database.db/dikt)
-	#echo RESPONSEHEADERS: $responseheaders
-	
-	# Hente ut cookie verdien
-	cookie=$(echo $responseheaders | awk -F "Set-Cookie:" '{print $2}')
-	cookie=$(echo $cookie | awk -F " " '{print $1}')
-	echo COOKIE: $cookie
-	
-	
-elif [ "$metodevalg" == "Logg+ut" ]; then
-	epost=$(echo $BODY | awk -F "epost=" '{print $2}')
-	epost=$(echo $epost | awk -F "&" '{print $1}')
-	
-	passord=$(echo $BODY | awk -F "passord=" '{print $2}')
-	passord=$(echo $passord | awk -F "&" '{print $1}')
-	echo "Du forsøker logge ut med eposten: $epost og passordet: $passord"
-	
-	curl -b "yummycookie=3" -X DELETE -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://172.17.0.3/sqlite/database.db/dikt
-	
-else  
-	metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
-	echo METODE: $metode
-	echo -e "|||"
+		
 	if [ "$metode" == "GET" ]; then
 		diktID=$(echo $BODY | awk -F "diktid=" '{print $2}')
 		diktID=$(echo $diktID | awk -F "&" '{print $1}')
@@ -145,8 +152,7 @@ else
 		echo diktID: $diktID
 		
 	fi
-	
-fi
+
 
 
 #echo "nubs"
