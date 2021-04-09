@@ -54,10 +54,12 @@ else
 	#echo -e "|||"
 	#echo "Content-type:text/html;charset=utf-8"
 	#echo
+	
 fi
 
 echo "Content-type:text/html;charset=utf-8"
 echo
+
 
 #echo RESPONSEHEADER: $responseheader
 #echo BODY: $body
@@ -124,15 +126,23 @@ EOF
 # echo METODEVALG: $metodevalg
 #echo -e "|||"
 	
-		
+	# Skal kunne gjøres uavhengig av om man er innlogget eller ikke i grensesnittet
 	if [ "$metode" == "GET" ]; then
 		diktID=$(echo $BODY | awk -F "diktid=" '{print $2}')
 		diktID=$(echo $diktID | awk -F "&" '{print $1}')
 		echo DIKTID: $diktID
 		#if [ "$diktID" == "skriv diktID her, eller la være tom" ]; then
 		#	echo "Alle dikt skal slettes."
-	
-	elif [ "$metode" == "POST" ]; then
+		if [ -n "$diktID" ]; then
+			diktsamling=$(curl http://172.17.0.3/sqlite/database.db/dikt/$diktID)
+			echo DIKTSAMLING: $diktsamling
+		else
+			diktsamling=$(curl http://172.17.0.3/sqlite/database.db/dikt)
+			echo DIKTSAMLING: $diktsamling
+		fi 
+	fi
+		
+	if [ "$metode" == "POST" ]; then
 		dikt=$(echo $BODY | awk -F "dikt=" '{print $2}')
 		dikt=$(echo $dikt | awk -F "&" '{print $1}')
 		dikt=$(echo $dikt | tr + ' ' )
