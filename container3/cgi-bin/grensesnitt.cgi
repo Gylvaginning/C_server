@@ -60,7 +60,7 @@ elif [ "$metodevalg" == "Logg+ut" ]; then
 	#fi
 	
 else  
-	#metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
+	metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
 	#echo METODE: $metode
 	#echo -e "|||"
 	echo "Content-type:text/html;charset=utf-8"
@@ -147,7 +147,7 @@ EOF
    
 # echo $BODY
 #echo -e "|||"
-metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
+#metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
 # echo METODEVALG: $metodevalg
 #echo -e "|||"
 	
@@ -162,7 +162,7 @@ metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
 			diktsamling=$(curl -b "$HTTP_COOKIE" http://172.17.0.3/sqlite/database.db/dikt/$diktID)
 			echo DIKTSAMLING: $diktsamling
 		else
-			diktsamling=$(curl -b "$HTTP_COOKIE" http://172.17.0.3/sqlite/database.db/dikt)
+			diktsamling=$(curl -b "HTTP_COOKIE" http://172.17.0.3/sqlite/database.db/dikt)
 			echo DIKTSAMLING: $diktsamling
 		fi 
 	fi
