@@ -31,8 +31,12 @@ if [ "$metodevalg" == "Logg+inn" ] && [ -z "$kjeks" ]; then
 	cookie=$(echo $cookie | awk -F " " '{print $1}')
 	#echo COOKIE: $cookie
 	echo "Set-Cookie:$cookie"
-	#echo "Content-type:text/html;charset=utf-8"
-	#echo
+	echo "Content-type:text/html;charset=utf-8"
+	echo
+	
+	if [ -n "$cookie" ]; then
+		echo "DU ER INNLOGGET."
+	fi
 	
 elif [ "$metodevalg" == "Logg+ut" ]; then
 	epost=$(echo $BODY | awk -F "epost=" '{print $2}')
@@ -48,25 +52,42 @@ elif [ "$metodevalg" == "Logg+ut" ]; then
 	respons=$(curl -b "$HTTP_COOKIE" -X DELETE -d "<bruker><epostadresse>$epost</epostadresse><passordhash>$passord</passordhash></bruker>" http://172.17.0.3/sqlite/database.db/dikt)
 	
 	echo "Set-Cookie:yummycookie=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-	#echo "Content-type:text/html;charset=utf-8"
-	#echo
+	echo "Content-type:text/html;charset=utf-8"
+	echo
+	
+	#if [ -z "$cookie" ]; then
+		echo "DU ER LOGGET UT."
+	#fi
 	
 else  
-	metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
+	#metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
 	#echo METODE: $metode
 	#echo -e "|||"
-	#echo "Content-type:text/html;charset=utf-8"
-	#echo
+	echo "Content-type:text/html;charset=utf-8"
+	echo
 	
 fi
 
-echo "Content-type:text/html;charset=utf-8"
-echo
+#echo "Content-type:text/html;charset=utf-8"
+#echo
+innloggingssjekk=$(curl -i -b "$HTTP_COOKIE" http://172.17.0.3/database.db/dikt)
+#echo innloggingssjekk: $innloggingssjekk
+cookieSjekk=$(echo $innloggingssjekk | awk -F "Set-Cookie:" '{print $2}')
+#echo cookieSjekk: $cookieSjekk
+cookieSjekk=$(echo $cookieSjekk | awk -F " " '{print $1}')
+#echo cookieSjekk2: $cookieSjekk
+if [ -n "$cookieSjekk" ] && [ "$metodevalg" != "Logg+inn" ] && [ "$metodevalg" != "Logg+ut" ]; then
+	echo "DU ER INNLOGGET."
+elif [ -z "$cookieSjekk" ] && [ "$metodevalg" != "Logg+inn" ]; then
+	echo "DU ER LOGGET UT."
+fi
+#if [ -z "$kjeks" ]; then
+#	echo "YOU ARE NOT LOGGED IN"
+#fi
+# echo KJEKS: $kjeks
 
-echo KJEKS: $kjeks
-
-#echo RESPONSEHEADER: $responseheader
-#echo BODY: $body
+# echo RESPONSEHEADER: $responseheader
+# echo BODY: $body
 
 cat << EOF
 <!DOCTYPE html>
@@ -126,7 +147,7 @@ EOF
    
 # echo $BODY
 #echo -e "|||"
-# metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
+metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
 # echo METODEVALG: $metodevalg
 #echo -e "|||"
 	
@@ -138,10 +159,10 @@ EOF
 		#if [ "$diktID" == "skriv diktID her, eller la være tom" ]; then
 		#	echo "Alle dikt skal slettes."
 		if [ -n "$diktID" ]; then
-			diktsamling=$(curl http://172.17.0.3/sqlite/database.db/dikt/$diktID)
+			diktsamling=$(curl -b "$HTTP_COOKIE" http://172.17.0.3/sqlite/database.db/dikt/$diktID)
 			echo DIKTSAMLING: $diktsamling
 		else
-			diktsamling=$(curl http://172.17.0.3/sqlite/database.db/dikt)
+			diktsamling=$(curl -b "$HTTP_COOKIE" http://172.17.0.3/sqlite/database.db/dikt)
 			echo DIKTSAMLING: $diktsamling
 		fi 
 	fi
