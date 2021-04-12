@@ -24,7 +24,7 @@ bruker=$(xmlstarlet sel -t -v '//bruker' /usr/local/apache2/xml/transition.xml)
 # Statiske variabler for XSD logikk
 header="<?xml version=\"1.0\"?>"
 rot=$(echo $streng | cut -d ">" -f 1)
-default="xmlns=\"http://localhost\""
+default="xmlns=\"http://172.17.0.1\""
 next="xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
 
 # Hvis cookie allerede er sendt med klientens forespørsel og ikke inneholder informasjon for ut-/innlogging
@@ -49,7 +49,7 @@ if [ -n "$HTTP_COOKIE" ] && [ -z "$bruker" ]; then
 elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 	
 	# Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
-	location="xsi:schemaLocation=\"http://localhost/www innlogging.xsd\">"
+	location="xsi:schemaLocation=\"http://172.17.0.1/www innlogging.xsd\">"
 	
 	#Droppe <bruker> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
 	ny_streng=$(echo $streng | cut -d ">" -f 2,3,4,5,6,7,8,9,10,11)
@@ -85,12 +85,19 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 		# Generere sesjonsID og cookie og blir da i praksis innlogget
 		echo "INSERT INTO Sesjon (epostadresse) VALUES ('$epost');" | sqlite3 /usr/local/apache2/sqlite/database.db
 		sessionidentity=$(echo "SELECT max(sesjonsID) FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db)
-		#echo SESSIONIDENTITY: $sessionidentity
-		valid=0;
-		echo "Set-Cookie:yummycookie=$sessionidentity"
-		#echo "Content-type:text/xml, application/xml;charset=utf-8"
+		echo "Access-Control-Allow-Origin: http://localhost"
+		echo "Access-Control-Allow-Methods: GET, PUT, POST, DELETE"
+		echo "Access-Control-Allow-Credentials: true"
+		echo "Set-Cookie: yummycookie=$sessionidentity; SameSite=None; Secure;"
 		echo "Content-type:application/xml;charset=utf-8"
 		echo
+		
+		echo SESSIONIDENTITY: $sessionidentity
+		valid=0;
+		
+		#echo "Content-type:text/xml, application/xml;charset=utf-8"
+		#echo "Content-type:application/xml;charset=utf-8"
+		#echo
 		echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
 		echo VALID: $valid
 		echo HTTP_COOKIE: $HTTP_COOKIE
@@ -162,7 +169,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 		xmlcont="<dikt><diktID>$id</diktID><diktu>$dikt</diktu><epostadresse>$epostadresse</epostadresse></dikt>"
 		
 		# Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
-		location="xsi:schemaLocation=\"http://localhost/www hentdikt.xsd\">"
+		location="xsi:schemaLocation=\"http://172.17.0.1/www hentdikt.xsd\">"
 		#Droppe <dikt> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
 		rot=$(echo $xmlcont | cut -d ">" -f 1)
 		#echo ROT: $rot
@@ -199,6 +206,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 			#echo INNEHALD: "$innehald"
 			#echo 
 			echo $xmlcont
+			# Gjør så diktene blir skrevet ut penere i webgrensesnittet
+			echo "<br></br>"
 			let "dikttall += 1"
 		done
     fi
@@ -220,7 +229,7 @@ if [ "$REQUEST_METHOD" = "POST" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; th
    #echo $streng > /usr/local/apache2/transition.xml
    
    # Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
-   location="xsi:schemaLocation=\"http://localhost/www hentdikt.xsd\">"
+   location="xsi:schemaLocation=\"http://172.17.0.1/www hentdikt.xsd\">"
    #Droppe <bruker> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
    #echo ROT: $rot
    ny_streng=$(echo $streng | cut -d ">" -f 2,3,4,5)
@@ -259,7 +268,7 @@ if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; the
    #echo STRENG: $streng
    
    # Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
-   location="xsi:schemaLocation=\"http://localhost/www hentdikt.xsd\">" 
+   location="xsi:schemaLocation=\"http://172.17.0.1/www hentdikt.xsd\">" 
    #Droppe <bruker> fra XML strengen for å kunne referere på riktig måte til XSD dokumentet 
    #echo ROT: $rot
    ny_streng=$(echo $streng | cut -d ">" -f 2,3,4,5,6,7,8,9,10,11)
