@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="http://172.17.0.1/grensesnitt.css">
+		<title>Startside</title>
+    <script>
+		
+        /*function sporre(event){
+            if (event.keyCode==13) {
+
+                // Lager et URL-objekt til bruk i fetch-metoden
+                let basis = 'http://172.17.0.3/cgi-bin/';
+                let url = new URL('rest.cgi', basis);             
+
+                // Lager referanser til elementer i html-dokumentet
+                let t1 =document.querySelector('#txt1').value;
+                let t2 =document.querySelector('#txt2').value;
+                let tbl=document.querySelector('#tabell');
+					
+
+                if ( 'POST' == t1 ) {
+
+                    <!-- // Sender post-forespørsel -->
+                    fetch( url, { method: t1, body: t2 } )
+                        .then( respons    => respons.text()            )
+                        .then( http_kropp => tbl.innerHTML+=http_kropp )
+					}
+                else {
+
+                    <!-- // Bygger "query-string" -->
+                    url.searchParams.set('txt1', t1);
+                    url.searchParams.set('txt2', t2);
+
+                    // sender GET-forespørsel
+                    fetch(url)
+                        .then( respons    => respons.text()            )
+                        .then( http_kropp => tbl.innerHTML+=http_kropp )
+                }
+            }
+        }
+	}*/
+	
+	// Lage en hendelsesfunksjon for innlogging
+		function innlogging(){
+
+			// Lager et URL-objekt til bruk i fetch-metoden
+			let basis = 'http://172.17.0.3/';
+			let url = new URL('sqlite/database.db/dikt', basis);
+			
+			//alert(' url equals: ' + url)
+			
+			// Lager referanser til elementer i HTML-dokumentet
+			let epost =document.getElementById('epost');
+			let passord =document.getElementById('passord');
+			//document.write('epost');
+			//alert('You entered ' + epost.value + ' You entered ' + passord.value)
+			
+			// Manipulere informasjonen inn i XML syntaks
+			let response ="<bruker><epostadresse>"+epost.value+"</epostadresse><passordhash>"+passord.value+"</passordhash></bruker>";
+			//console.log(response)
+			
+			// sender POST(innlogging)-forespørsel der vi forteller fetch hvilken ressurs vi ønsker å aksessere (url)
+			//let promise = fetch(url, [origin: 'http://localhost']);
+			/*let fetchPromise = fetch(url, {
+				 method: 'POST',
+				 //mode: 'cors',
+				 origin: 'http://localhost',
+				 credentials: 'same-origin',
+				 //access-control-request-method: 'POST',
+				 //access-control-request-headers: {'Content-Type:application/xml'},
+				 headers: {
+					 'Content-Type': 'application/x-www-form-urlencoded'},
+				 body: response 
+			 })
+			 .then(function(response) {
+				 return response.text();
+			 })
+			//});
+			//fetchPromise.then(response =>  {
+			if (fetchPromise.ok){
+				console.log(fetchPromise)
+			}
+			else {
+				alert("HTTP-Error: " + fetchPromise.status);
+			}*/
+			let fetchPromise = fetch(url, {
+				method: "POST",
+				origin: 'http://localhost',
+				credentials: 'same-origin',
+				headers: {
+					 'Content-Type': 'application/x-www-form-urlencoded'},
+				body: response 
+			 })
+			 .then(function(response) {
+				 return response.text();
+			 })
+			//});
+			//fetchPromise.then(response =>  {
+			if (fetchPromise.ok){
+				console.log(fetchPromise)
+			}
+			else {
+				alert("HTTP-Error: " + fetchPromise.value);
+			}
+			
+				//console.log(fetchPromise)
+			//});
+			//.then( function(respons) { return respons.text()});
+			//.then( http kropp => tbl.innerHTML+=http kropp )
+		};
+		// Lage en hendelsesfunksjon for GET request ved bruk av fetch()
+		function hentdikt() {
+			
+		}
+		//let basis = 'http://172.17.0.3/cgi-bin/';
+        //let url = new URL('rest.cgi', basis);  
+		//fetch("url")
+		
+</script>
+  </head>
+  <body>
+	  <p><a href="http://172.17.0.1/index.html"> Besøk nettsiden vår!</a></p>
+	  <h2>Innlogging</h2>
+	  <hr>
+	  <form method="POST">
+	      <label for="epost">Epostadresse:</label><br>
+	      <input type="text" id="epost" name="epost" value"Skrive epostadresse her"><br>
+	      <label for="passord">Passord:</label><br>
+	      <input type="password" id="passord" name="passord"><br>
+	      <button onclick="innlogging()">Logg inn</button>
+	      <!--input type="submit" name="metodevalg" value="Logg inn" onclick='innlogging()'-->
+	      <input type="submit" name="metodevalg" value="Logg ut">
+	</form>
+	
+	<h2>Handlinger</h2>
+
+	<form method="POST">
+		<input type="radio" id="hentdikt" name="metodevalg" value="GET">
+		<label for="hentdikt">Hent dikt</label><br>
+		<input type="text" id="diktid" name="diktid" value="skriv diktID her, eller la være tom"><br>
+		<br>
+	</form>
+		
+	<form method="POST">
+		<input type="radio" id="publiserdikt" name="metodevalg" value="POST">
+		<label for="publiserdikt">Publiser dikt</label><br>
+		<input type="text" id="dikt" name="dikt" value="Skriv diktet ditt her" size="50"><br>
+		<br>
+	</form>
+		
+	<form method="POST">
+		<input type="radio" id="endredikt" name="metodevalg" value="PUT">
+		<label for="endredikt">Endre dikt</label><br>
+		<input type="text" id="diktid" name="diktid" value="skriv DiktID"><br>
+		<input type="text" id="dikt" name="dikt" value="Skriv diktet på nytt her" size="50"><br>
+		<br>
+	</form>
+	
+	<form method="POST">
+		<input type="radio" id="slettdikt" name="metodevalg" value="DELETE">
+		<label for="slettdikt">Slett dikt</label><br>
+		<input type="text" id="diktid" name="diktid" value="skriv diktID her, eller la være tom"><br><br>
+		<input type="submit" name="submit" value="submit"><br><br>
+	</form>
+	
+</body>
+</html>
