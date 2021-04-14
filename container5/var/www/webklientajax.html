@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="http://172.17.0.1/grensesnitt.css">
+	<title>Startside</title>
+  </head>
+  <body>
+	  <p><a href="http://172.17.0.1/index.html"> Besøk nettsiden vår!</a></p>
+	  <h2>Innlogging</h2>
+	  
+	  <form method="POST">
+	      <label for="epost">Epostadresse:</label><br>
+	      <input type="text" id="epost" name="epost"><br>
+	      <label for="passord">Passord:</label><br>
+	      <input type="password" id="passord" name="passord"><br>
+	      <button onclick="innlogging()">Logg inn</button>
+	      <button onclick="utlogging()">Logg ut</button>
+	  </form>
+	
+	<h2>Handlinger</h2>
+	
+	<script>
+	// Lage en hendelsesfunksjon for innlogging
+	function innlogging(){
+	
+		// Lager et URL-objekt til bruk i fetch-metoden
+		let basis = 'http://172.17.0.3/';
+		let url = new URL('sqlite/database.db/dikt', basis);
+		
+		// Lager referanser til elementer i HTML-dokumentet		
+		let epost =document.getElementById('epost');
+		let passord =document.getElementById('passord');
+		
+		// Manipulere informasjonen inn i XML syntaks
+		let response ="<bruker><epostadresse>"+epost.value+"</epostadresse><passordhash>"+passord.value+"</passordhash></bruker>";
+		
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function () {
+			if (xhttp.readyState == 4 && xhttp.status == 200) {
+				console.log(xhttp.responseText);
+			}
+			/*else {
+				console.log("Error");
+				console.log("state:" + xhttp.readyState);
+				console.log("status : " + xhttp.status);
+			}*/
+		};
+		xhttp.open("POST", url, false);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.withCredentials = true;
+		xhttp.send(response);
+	}
+	
+	function utlogging() {
+		
+		// Lager et URL-objekt til bruk i fetch-metoden
+		let basis = 'http://172.17.0.2/';
+		let url = new URL('sqlite/database.db/dikt', basis);
+		
+		// Lager referanser til elementer i HTML-dokumentet		
+		let epost =document.getElementById('epost');
+		
+		let response ="<bruker><epostadresse>"+epost.value+"</epostadresse></bruker>";
+		
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function () {
+			if (xhttp.readyState == 4 && xhttp.status == 200) {
+				console.log(xhttp.responseText);
+			}
+			else {
+				console.log("Error");
+				console.log("state:" + xhttp.readyState);
+				console.log("status : " + xhttp.status);
+			}
+		};
+		xhttp.open("DELETE", url, false);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.withCredentials = true;
+		xhttp.send(response);
+	}
+	
+</script>
+</body>
+</html>
