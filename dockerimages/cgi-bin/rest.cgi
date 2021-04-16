@@ -91,7 +91,7 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ] && [ -z "$HTTP_COOKIE" ]
 		echo "Access-Control-Allow-Origin: http://localhost"
 		echo "Access-Control-Allow-Methods: GET, PUT, POST, DELETE"
 		echo "Access-Control-Allow-Credentials: true"
-		echo "Set-Cookie: yummycookie=$sessionidentity;"
+		echo "Set-Cookie: yummycookie=$sessionidentity"
 		echo "Content-type:application/xml;charset=utf-8"
 		echo
 		
@@ -130,14 +130,15 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "DELETE" ] && [ -n "$HTTP_COOKIE"
 	echo "Access-Control-Allow-Origin: http://localhost"
 	echo "Access-Control-Allow-Methods: GET, PUT, POST, DELETE"
 	echo "Access-Control-Allow-Credentials: true"
+	echo "Set-Cookie: yummycookie=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
 	echo "Content-type:application/xml;charset=utf-8"
 	echo
 	
 	echo "DELETE FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db
 	valid=1
 	#echo "Slette OK."
-	echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
-	
+	#echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
+	# Hvis det ikke er sendt inn en sesjonscookie samt ikke innlogging eller utlogging
 else
 	#echo "Content-type:text/xml, application/xml;charset=utf-8"
 	echo "Access-Control-Allow-Origin: http://localhost"
@@ -145,7 +146,6 @@ else
 	echo "Access-Control-Allow-Credentials: true"
 	echo "Content-type:application/xml;charset=utf-8"
 	echo
-	#echo "hoy"
 fi
 
 # Skriver ut 'http-header' for 'plain-text' SOM SKAL VÆRE SLUTTEN AV HTTP HODET MED PÅFØLGENDE TOM LINJE FOR HTTP KROPPEN
@@ -175,7 +175,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     #echo ID:        $id
 
     # Dirigere serveren til å hente ressursen/alle ressursene
-    if [[ -n "${id}" ]]; then
+    if [ -n "$id" ]; then
 		dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		epostadresse=$(echo "SELECT epostadresse FROM $tabell where diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		xmlcont="<dikt><diktID>$id</diktID><diktu>$dikt</diktu><epostadresse>$epostadresse</epostadresse></dikt>"
@@ -293,7 +293,7 @@ if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; the
    
    samling=$(echo $streng | awk -F"<" '{print $2}' | cut -d ">" -f 0)
    #echo SAMLING: $samling
-
+   
    dikt=$(echo $streng | awk -F"<" '{print $3}' | cut -d ">" -f 2)
    #echo DIKT: $dikt
 
