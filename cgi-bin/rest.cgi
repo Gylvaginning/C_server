@@ -30,23 +30,26 @@ next="xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
 # Hvis cookie allerede er sendt med klientens forespørsel og ikke inneholder informasjon for ut-/innlogging
 if [ -n "$HTTP_COOKIE" ] && [ -z "$bruker" ]; then
 	
-	echo "Set-Cookie: $HTTP_COOKIE"
 	#echo "Content-type:text/xml, application/xml;charset=utf-8"
+	echo "Access-Control-Allow-Origin: http://localhost"
+	echo "Access-Control-Allow-Methods: GET, PUT, POST, DELETE"
+	echo "Access-Control-Allow-Credentials: true"
+	#echo "Set-Cookie: $HTTP_COOKIE"
 	echo "Content-type:application/xml;charset=utf-8"
 	echo
 	#echo HTTP_COOKIE: $HTTP_COOKIE
 	sesjonsID=$(echo $HTTP_COOKIE | cut -d = -f 2)
 	#epost=$(xmlstarlet sel -t -v '//epostadresse' /usr/local/apache2/xml/transition.xml)
-	echo sesjonsID: $sesjonsID
+	#echo sesjonsID: $sesjonsID
 	valid=0;
-	echo STRENG: $streng
-	echo EPOST: $epost
-	echo REQUEST_METHOD:	$REQUEST_METHOD
-	echo BRUKER: $bruker
+	#echo STRENG: $streng
+	#echo EPOST: $epost
+	#echo REQUEST_METHOD:	$REQUEST_METHOD
+	#echo BRUKER: $bruker
 	
 # Hvis det er en variabel i bruker og metoden er POST så er det innlogging
 # curl -c "cookies.txt" -v -d "<bruker><epostadresse>am.no</epostadresse><passordhash>ananas3pai</passordhash><fornavn>Kaare</fornavn><etternavn>Hagen</etternavn></bruker>" localhost:8080/sqlite/database.db/dikt
-elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
+elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ] && [ -z "$HTTP_COOKIE" ]; then
 	
 	# Sjekke validering mot XSD dokument på busyboxcontaineren fra mp2
 	location="xsi:schemaLocation=\"http://172.17.0.1/www innlogging.xsd\">"
@@ -64,13 +67,13 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 	# Hente epostadresse fra XML-fila (kommandolinja)
 	epost=$(xmlstarlet sel -t -v '//epostadresse' /usr/local/apache2/xml/transition.xml)
 
-	echo EPOST: $epost
+	#echo EPOST: $epost
 
 	# Hente passordet fra XML-fila (kommandolinja) og deretter kjøre MD5 for å sjekke hashen
 
 	passord=$(xmlstarlet sel -t -v '//passordhash' /usr/local/apache2/xml/transition.xml)
 
-	echo PASSORD: $passord
+	#echo PASSORD: $passord
 
 	pwHash=$(echo -n $passord | md5sum)
 	#echo pwHash: $pwHash
@@ -88,52 +91,61 @@ elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "POST" ]; then
 		echo "Access-Control-Allow-Origin: http://localhost"
 		echo "Access-Control-Allow-Methods: GET, PUT, POST, DELETE"
 		echo "Access-Control-Allow-Credentials: true"
-		echo "Set-Cookie: yummycookie=$sessionidentity; SameSite=None; Secure;"
+		echo "Set-Cookie: yummycookie=$sessionidentity"
 		echo "Content-type:application/xml;charset=utf-8"
 		echo
 		
-		echo SESSIONIDENTITY: $sessionidentity
+		#echo SESSIONIDENTITY: $sessionidentity
 		valid=0;
 		
 		#echo "Content-type:text/xml, application/xml;charset=utf-8"
 		#echo "Content-type:application/xml;charset=utf-8"
 		#echo
-		echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
-		echo VALID: $valid
-		echo HTTP_COOKIE: $HTTP_COOKIE
-		echo STRENG: $streng
-		echo EPOST: $epost
-		echo REQUEST_METHOD: $REQUEST_METHOD
-		echo BRUKER: $bruker
+		#echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
+		#echo VALID: $valid
+		#echo HTTP_COOKIE: $HTTP_COOKIE
+		#echo STRENG: $streng
+		#echo EPOST: $epost
+		#echo REQUEST_METHOD: $REQUEST_METHOD
+		#echo BRUKER: $bruker
 	else
 		#echo "Content-type:text/xml, application/xml;charset=utf-8"
+		echo "Access-Control-Allow-Origin: http://localhost"
+		echo "Access-Control-Allow-Methods: GET, POST, PUT, DELETE"
+		echo "Access-Control-Allow-Credentials: true"
 		echo "Content-type:application/xml;charset=utf-8"
 		echo
-		echo "Incorrect password."
+		#echo "Incorrect password."
     fi
 # Hvis det er en variabel i bruker, en cookie i headeren og metoden er DELETE så er det utlogging
-# curl -b "cookies.txt" -X DELETE -d "<bruker><epostadresse>am.no>/epostadresse<passordhash>ananas3pai</passordhash></bruker>" localhost:8080/sqlite/database.db/dikt
+# curl -b "cookies.txt" -X DELETE -d "<bruker><epostadresse>am.no</epostadresse><passordhash>ananas3pai</passordhash></bruker>" localhost:8080/sqlite/database.db/dikt
 elif [ -n "$bruker" ] && [ "$REQUEST_METHOD" = "DELETE" ] && [ -n "$HTTP_COOKIE" ]; then
 	
 	# Hente epostadresse fra XML-fila (kommandolinja)
 	epost=$(xmlstarlet sel -t -v '//epostadresse' /usr/local/apache2/xml/transition.xml)
 	
 	sesjonsID=$(echo $HTTP_COOKIE | cut -d = -f 2)
-	echo sesjonsID: $sesjonsID
+	#echo sesjonsID: $sesjonsID
 	
+	echo "Access-Control-Allow-Origin: http://localhost"
+	echo "Access-Control-Allow-Methods: GET, PUT, POST, DELETE"
+	echo "Access-Control-Allow-Credentials: true"
+	echo "Set-Cookie: yummycookie=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
 	echo "Content-type:application/xml;charset=utf-8"
 	echo
 	
 	echo "DELETE FROM Sesjon WHERE sesjonsID='$sesjonsID';" | sqlite3 /usr/local/apache2/sqlite/database.db
 	valid=1
-	echo "Slette OK."
-	echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
-	
+	#echo "Slette OK."
+	#echo "SELECT * FROM Sesjon;" | sqlite3 /usr/local/apache2/sqlite/database.db
+	# Hvis det ikke er sendt inn en sesjonscookie samt ikke innlogging eller utlogging
 else
 	#echo "Content-type:text/xml, application/xml;charset=utf-8"
+	echo "Access-Control-Allow-Origin: http://localhost"
+	echo "Access-Control-Allow-Methods: GET, POST, PUT, DELETE"
+	echo "Access-Control-Allow-Credentials: true"
 	echo "Content-type:application/xml;charset=utf-8"
 	echo
-	#echo "hoy"
 fi
 
 # Skriver ut 'http-header' for 'plain-text' SOM SKAL VÆRE SLUTTEN AV HTTP HODET MED PÅFØLGENDE TOM LINJE FOR HTTP KROPPEN
@@ -163,7 +175,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     #echo ID:        $id
 
     # Dirigere serveren til å hente ressursen/alle ressursene
-    if [[ -n "${id}" ]]; then
+    if [ -n "$id" ]; then
 		dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		epostadresse=$(echo "SELECT epostadresse FROM $tabell where diktID=$id;" | sqlite3 /usr/local/apache2/sqlite/database.db)
 		xmlcont="<dikt><diktID>$id</diktID><diktu>$dikt</diktu><epostadresse>$epostadresse</epostadresse></dikt>"
@@ -185,6 +197,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 		#echo ANTALL: $antall
 		dikttall=1
 		#echo DIKTTALL: $dikttall
+		echo "<Dikt>"
 		while [ $dikttall -le $antall ]
 		do
 			dikt=$(echo "SELECT $tabell FROM $tabell WHERE diktID=$dikttall;" | sqlite3 /usr/local/apache2/sqlite/database.db)
@@ -207,9 +220,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 			#echo 
 			echo $xmlcont
 			# Gjør så diktene blir skrevet ut penere i webgrensesnittet
-			echo "<br></br>"
+			#echo "<br></br>"
 			let "dikttall += 1"
 		done
+		echo "</Dikt>"
     fi
 fi
 
@@ -281,7 +295,7 @@ if [ "$REQUEST_METHOD" = "PUT" ] && [ "$valid" == "0" ] && [ -z "$bruker" ]; the
    
    samling=$(echo $streng | awk -F"<" '{print $2}' | cut -d ">" -f 0)
    #echo SAMLING: $samling
-
+   
    dikt=$(echo $streng | awk -F"<" '{print $3}' | cut -d ">" -f 2)
    #echo DIKT: $dikt
 

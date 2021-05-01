@@ -1,12 +1,17 @@
 #base image med alpinelinux og http demon Apache
 FROM httpd:alpine
 
-#Installer sqlite3 og xmlstarlet funksjonalitet i containeren
+#Installer sqlite3, xmlstarlet og libcap funksjonalitet i containeren
 RUN apk add sqlite
 RUN apk add xmlstarlet
+RUN apk add curl
+RUN apk add libcap
 
 #Eventuelle HTML-dokumenter
 #COPY ./public-html/ /usr/local/apache2/htdocs/
+
+# Begrens prosessorbruk til ca 50%
+#RUN cpu-shares 512
 
 #Konfigurasjonsfil som først måtte hentes ned, for så å kopieres inn containeren
 # den gjør slik at det blir tillatt CGI
