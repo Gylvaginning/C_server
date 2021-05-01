@@ -116,7 +116,8 @@ int main ()
       strcmp(test, "svgz") == 0 || strcmp(test, "xml") == 0 ||
       strcmp(test, "xsd") == 0 || strcmp(test, "xsl") == 0 ||
       strcmp(test, "xslt") == 0 || strcmp(test, "css") == 0 ||
-      strcmp(test, "json") == 0){
+      strcmp(test, "json") == 0 || strcmp(test, "jpg") == 0 ||
+      strcmp(test, "cgi") == 0 || strcmp(test, "js") == 0){
 		  /* Må avgjøre om filstien finnes 
 		   * og kan aksesseres, ellers sendes feilmelding */
 		  char dot[10]= ".";
@@ -164,6 +165,14 @@ int main ()
 				  while(fread(fbuffer, 1, 1024, fp) != 0)
 					write(ny_sd, fbuffer, sizeof(fbuffer));
 				  }
+			else if(strcmp(test, "jpg") == 0){
+				  fp = fopen(test3, "r");
+				  ptr = "HTTP/1.1 200 OK\nContent-Type: image/jpg\n\n";
+				  size_t st = strlen(ptr);
+				  write(ny_sd, ptr, st);
+				  while(fread(fbuffer, 1, 1024, fp) != 0)
+					write(ny_sd, fbuffer, sizeof(fbuffer));
+				  }
 			else if(strcmp(test, "svg") == 0 || strcmp(test, "svgz") == 0){
 				  fp = fopen(test3, "r");
 				  ptr = "HTTP/1.1 200 OK\nContent-Type: image/svg+xml\n\n";
@@ -204,6 +213,22 @@ int main ()
 				  while(fread(fbuffer, 1, 1024, fp) != 0)
 					write(ny_sd, fbuffer, sizeof(fbuffer));
 				  }
+			else if(strcmp(test, "cgi") == 0){
+				fp = fopen(test3, "r");
+				ptr = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n";
+				size_t st = strlen(ptr);
+				write(ny_sd, ptr, st);
+				while(fread(fbuffer, 1, 1024, fp) != 0)
+				   write(ny_sd, fbuffer, sizeof(fbuffer));
+				}
+			else if(strcmp(test, "js") == 0){
+				fp = fopen(test3, "r");
+				ptr = "HTTP/1.1 200 OK\nContent-Type: text/javascript\n\n";
+				size_t st = strlen(ptr);
+				write(ny_sd, ptr, st);
+				while(fread(fbuffer, 1, 1024, fp) != 0)
+				   write(ny_sd, fbuffer, sizeof(fbuffer));
+				}
 		  }
 		  else{
 			write(ny_sd, noresource, strlen(noresource));
@@ -233,15 +258,14 @@ int main ()
       shutdown(ny_sd, SHUT_RDWR);
       exit(0);
     }
-
     else {
 		// For å hindre zombie prosesser
 		//signal(SIGCHLD, SIG_IGN);
 		wait(NULL);
 		
 		// Steng fildeskriptor
-      close(ny_sd);
-      //printf("PID of parent process is %d\n", pid);
+		close(ny_sd);
+		//printf("PID of parent process is %d\n", pid);
     }
   }
   return 0;
@@ -250,27 +274,36 @@ int main ()
 // Funksjon for demonisering av tjeneren
 void demoniser(){
 	pid_t ppid;
-	//pid_t sid;
+	pid_t sid;
 	ppid = fork();
-	if(ppid != 0){
-		exit(0); // Opphav gjør exit
+	if(ppid < 0) {
+		exit(EXIT_FAILURE); 
+	}
+	if(ppid > 0) {
+		exit(EXIT_SUCCESS); // Opphav gjør exit
 	}
 	/* Jobber nå på barnet som er blitt foreldreløs
 	 * Kjører setsid() for å lage en ny sesjon der barneprosessen
 	 * blir ny sesjonsleder og prosessgruppeleder uten kontrollterminal*/
-	 setsid();
-	 /*if(sid != -1)
-		printf("The calling process with PID %d was not a process group leader", ppid);*/
+	sid = setsid();
+	 if(sid < 0) {
+		exit(EXIT_FAILURE);
+		//printf("The calling process with PID %d was not a process group leader", ppid);
+	}
 		
 	 // Ignorere SIGHUP når sesjonslederen i neste trinn skal termineres
-	 signal(SIGHUP, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
 	 
 	 /* Gjør fork på nytt for å hindre at tjeneren ikke lenger 
 	  * er sesjonsleder og dermed ikke kan knytte seg til en
 	  * kontrollterminal som er ledig */
-	  if(fork() != 0){
-		  exit(0); // Opphav gjør exit
-	  }
+	ppid = fork();
+	if(ppid < 0) {
+		exit(EXIT_FAILURE); 
+	}
+	if(ppid > 0) {
+		exit(EXIT_SUCCESS); // Opphav gjør exit
+	}
 	  
 	  // Steng alle unødvendige filer
 	  close(STDIN_FILENO);
@@ -278,8 +311,3 @@ void demoniser(){
 	  //close(STDERR_FILENO);
 		
 }
-/*printf("HTTP/1.1 200 OK\n");
-      printf("Content-Type: text/plain\n");
-      printf("\n");
-      printf("HTTP/1.1 200 OK\nHei Anne-Marthe uwu!\nJeg synes data er goy!\n");
-      */
