@@ -60,7 +60,6 @@ elif [ "$metodevalg" == "Logg+ut" ]; then
 	#fi
 	
 else  
-	metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
 	#echo METODE: $metode
 	#echo -e "|||"
 	echo "Content-type:text/html;charset=utf-8"
@@ -68,6 +67,9 @@ else
 	
 fi
 
+
+#kjeks=$HTTP_COOKIE
+#echo KJEKS: $kjeks
 #echo "Content-type:text/html;charset=utf-8"
 #echo
 innloggingssjekk=$(curl -i -b "$HTTP_COOKIE" http://172.17.0.3/database.db/dikt)
@@ -78,7 +80,7 @@ cookieSjekk=$(echo $cookieSjekk | awk -F " " '{print $1}')
 #echo cookieSjekk2: $cookieSjekk
 if [ -n "$cookieSjekk" ] && [ "$metodevalg" != "Logg+inn" ] && [ "$metodevalg" != "Logg+ut" ]; then
 	echo "DU ER INNLOGGET."
-elif [ -z "$cookieSjekk" ] && [ "$metodevalg" != "Logg+inn" ]; then
+elif [ "$metodevalg" != "Logg+inn" ] && [ "$metodevalg" != "Logg+ut" ]; then
 	echo "DU ER LOGGET UT."
 fi
 #if [ -z "$kjeks" ]; then
@@ -94,7 +96,7 @@ cat << EOF
 <html>
 	<head>
 		<meta charset="utf-8">
-		<link rel="stylesheet" href="http://url/stil.css">
+		<link rel="stylesheet" href="http://172.17.0.1/grensesnitt.css">
 		<title>Startside</title>
 	</head>
 
@@ -148,6 +150,7 @@ EOF
 # echo $BODY
 #echo -e "|||"
 #metodevalg=$(echo $BODY | awk -F "metodevalg=" '{print $2}')
+metode=$(echo "$metodevalg" | awk -F "&" '{print $1}')
 # echo METODEVALG: $metodevalg
 #echo -e "|||"
 	
@@ -180,16 +183,16 @@ EOF
 	if [ "$metode" == "PUT" ]; then
 		diktID=$(echo $BODY | awk -F "diktid=" '{print $3}')
 		diktID=$(echo $diktID | awk -F "&" '{print $1}')
-		echo diktID: $diktID
+		#echo diktID: $diktID
 		echo -e "|||"
 		
 		dikt=$(echo $BODY | awk -F "dikt=" '{print $3}')
 		dikt=$(echo $dikt | awk -F "&" '{print $1}')
 		dikt=$(echo $dikt | tr + ' ' )
-		echo DIKT: $dikt
+		#echo DIKT: $dikt
 		
 		put=$(curl -b "$HTTP_COOKIE" -X PUT -d "<dikt><tittel>$dikt</tittel></dikt>" http://172.17.0.3/sqlite/database.db/dikt/$diktID)
-		echo PUT: $put
+		#echo PUT: $put
 	fi
 		
 	if [ "$metode" == "DELETE" ]; then
