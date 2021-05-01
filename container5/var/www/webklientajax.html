@@ -1,9 +1,187 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
     <link rel="stylesheet" href="http://localhost:80/grensesnitt.css">
 	<title>Startside</title>
+	
+	<script>
+	function checkCookies() {
+		let xhttp = new XMLHttpRequest();
+		xhttp.open("POST", url, false);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.withCredentials = true;
+		xhttp.send();
+		let indikatortall = setTimeout(xhttp.getResponseHeader("Set-Cookie"), 1500);
+		if(indikatortall != "") {
+			document.getElementById('status').innerHTML = "Du er innlogget";
+		}
+		else {
+			document.getElementById('status').innerHTML = "Du er utlogget";
+		}
+	}
+		
+		
+	// Lage en hendelsesfunksjon for innlogging
+	function innlogging(){
+	
+		// Lager et URL-objekt til bruk i fetch-metoden
+		let basis = 'http://172.17.0.3/';
+		let url = new URL('sqlite/database.db/dikt', basis);
+		
+		// Lager referanser til elementer i HTML-dokumentet		
+		let epost =document.getElementById('epost');
+		let passord =document.getElementById('passord');
+		
+		// Manipulere informasjonen inn i XML syntaks
+		let response ="<bruker><epostadresse>"+epost.value+"</epostadresse><passordhash>"+passord.value+"</passordhash></bruker>";
+		
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function () {
+			if (xhttp.readyState == 4 && xhttp.status == 200) {
+				//console.log(xhttp.getResponseHeaders);
+			}
+		};
+		xhttp.open("POST", url, false);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.withCredentials = true;
+		xhttp.send(response);
+		
+		//alert(xhttp.getResponseHeader("Set-Cookie");
+		var indikatortall = setTimeout(xhttp.getResponseHeader("Set-Cookie"), 1500);
+		if(indikatortall != "") {
+			document.getElementById('status').innerHTML = "Du er innlogget";
+		}
+		else {
+			document.getElementById('status').innerHTML = "Du er utlogget";
+		}
+	}
+	
+	function utlogging() {
+		
+		// Lager et URL-objekt til bruk i fetch-metoden
+		// let basis = 'http://172.17.0.3/';
+		// let url = new URL('sqlite/database.db/dikt', basis);
+		
+		// Lager referanser til elementer i HTML-dokumentet		
+		let epost =document.getElementById('epost');
+		
+		let response ="<bruker><epostadresse>"+epost.value+"</epostadresse></bruker>";
+		
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function () {
+			if (xhttp.readyState == 4 && xhttp.status == 200) {
+				//console.log(xhttp.responseText);
+			}
+		};
+		xhttp.open("DELETE", 'http://172.17.0.3/sqlite/database.db/dikt', false);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.withCredentials = true;
+		xhttp.send(response);
+		
+		document.getElementById('status').innerHTML = "Du er utlogget";
+	}
+	
+	function hent() {
+		
+		let id =document.getElementById('diktidGET');
+		let basis = 'http://172.17.0.3/sqlite/database.db/dikt/';
+		let url = new URL(id.value, basis);
+		
+		
+		fetch(url)
+			.then(response => response.text())
+			.then(data => lesDikt(data));
+		
+	}
+	
+	function postDikt() {
+		
+		let dikt =document.getElementById('diktPOST');
+		
+		let response ="<dikt><tittel>"+dikt.value+"</tittel></dikt>";
+		
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function () {
+			if (xhttp.readyState == 4 && xhttp.status == 200) {
+				//console.log(xhttp.responseText);
+			}
+		};
+		xhttp.open("POST", "http://172.17.0.3/sqlite/database.db/dikt", false);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.withCredentials = true;
+		xhttp.send(response);
+	}
+	
+	function putDikt() {
+		
+		let dikt =document.getElementById('diktPUT');
+		let id =document.getElementById('diktPUTid');
+		
+		//let basis = 'http://172.17.0.3/sqlite/database.db/dikt/';
+		//let url = new URL(id.value, basis);
+		
+		//alert (url)
+		let url ="http://172.17.0.3/sqlite/database.db/dikt/"+id.value;
+		let response ="<dikt><tittel>"+dikt.value+"</tittel></dikt>";
+		
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function () {
+			if (xhttp.readyState == 4 && xhttp.status == 200) {
+				//console.log(xhttp.responseText);
+			}
+		};
+		xhttp.open("PUT", url, false);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.withCredentials = true;
+		xhttp.send(response);
+	}
+	
+	function slettDikt() {
+		
+		let dikt =document.getElementById('diktslett');
+		
+		let url ="http://172.17.0.3/sqlite/database.db/dikt/"+dikt.value;
+		
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = function () {
+			if (xhttp.readyState == 4 && xhttp.status == 200) {
+				//console.log(xhttp.responseText);
+			}
+		};
+		xhttp.open("DELETE", url, false);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.withCredentials = true;
+		xhttp.send();
+	}
+	
+	function lesDikt(data) {
+		
+		const parser = new DOMParser();
+		
+		const xmlString = data;
+		const xmldocument = parser.parseFromString(xmlString, "application/xml");
+		
+		console.log(xmldocument.documentElement.textContent);
+		document.getElementById('demo').innerHTML = xmldocument.documentElement.textContent;
+		
+	}
+	
+	function serviceWorkerSjekk() {
+        if( ! ( 'serviceWorker' in navigator) ) 
+
+           alert ('"ServiceWorker" er ikke støttet');
+
+        else {
+
+           navigator.serviceWorker.register('./serviceArbeider.js'       ).then  (
+              function (reg)     { alert ('Installasjon fullført')     } ).catch (
+              function (err)     { alert ('Innstallasjon feilet:'+err) }
+              );
+        }
+      }
+	
+	</script>
   </head>
   <body onload=serviceWorkerSjekk()>
 	  <p><a href="http://172.17.0.1/index.html"> Besøk nettsiden vår!</a></p>
@@ -51,217 +229,5 @@
 		<br><br>
 	</form>
 	
-	<script>
-	function checkCookies() {
-		let xhttp = new XMLHttpRequest();
-		xhttp.open("POST", url, false);
-		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		xhttp.withCredentials = true;
-		xhttp.send();
-		let indikatortall = setTimeout(xhttp.getResponseHeader("Set-Cookie"), 1500);
-		if(indikatortall != "") {
-			document.getElementById('status').innerHTML = "Du er innlogget";
-		}
-		else {
-			document.getElementById('status').innerHTML = "Du er utlogget";
-		}
-	}
-		
-		
-	// Lage en hendelsesfunksjon for innlogging
-	function innlogging(){
-	
-		// Lager et URL-objekt til bruk i fetch-metoden
-		let basis = 'http://172.17.0.3/';
-		let url = new URL('sqlite/database.db/dikt', basis);
-		
-		// Lager referanser til elementer i HTML-dokumentet		
-		let epost =document.getElementById('epost');
-		let passord =document.getElementById('passord');
-		
-		// Manipulere informasjonen inn i XML syntaks
-		let response ="<bruker><epostadresse>"+epost.value+"</epostadresse><passordhash>"+passord.value+"</passordhash></bruker>";
-		
-		var xhttp = new XMLHttpRequest();
-		xhttp.onreadystatechange = function () {
-			if (xhttp.readyState == 4 && xhttp.status == 200) {
-				//console.log(xhttp.getResponseHeaders
-			}
-			/*else {
-				console.log("Error");
-				console.log("state:" + xhttp.readyState);
-				console.log("status : " + xhttp.status);
-			}*/
-		};
-		xhttp.open("POST", url, false);
-		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		xhttp.withCredentials = true;
-		xhttp.send(response);
-		
-		//alert(xhttp.getResponseHeader("Set-Cookie");
-		var indikatortall = setTimeout(xhttp.getResponseHeader("Set-Cookie"), 1500);
-		if(indikatortall != "") {
-			document.getElementById('status').innerHTML = "Du er innlogget";
-		}
-		else {
-			document.getElementById('status').innerHTML = "Du er utlogget";
-		}
-	}
-	
-	function utlogging() {
-		
-		// Lager et URL-objekt til bruk i fetch-metoden
-		let basis = 'http://172.17.0.3/';
-		let url = new URL('sqlite/database.db/dikt', basis);
-		
-		// Lager referanser til elementer i HTML-dokumentet		
-		let epost =document.getElementById('epost');
-		
-		let response ="<bruker><epostadresse>"+epost.value+"</epostadresse></bruker>";
-		
-		var xhttp = new XMLHttpRequest();
-		xhttp.onreadystatechange = function () {
-			if (xhttp.readyState == 4 && xhttp.status == 200) {
-				//console.log(xhttp.responseText);
-			}
-			/*else {
-				console.log("Error");
-				console.log("state:" + xhttp.readyState);
-				console.log("status : " + xhttp.status);
-			}*/
-		};
-		xhttp.open("DELETE", 'http://172.17.0.3/sqlite/database.db/dikt', false);
-		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		xhttp.withCredentials = true;
-		xhttp.send(response);
-		
-		document.getElementById('status').innerHTML = "Du er utlogget";
-	}
-	
-	function hent() {
-		
-		let id =document.getElementById('diktidGET');
-		let basis = 'http://172.17.0.3/sqlite/database.db/dikt/';
-		let url = new URL(id.value, basis);
-		
-		
-		fetch(url)
-			.then(response => response.text())
-			.then(data => lesDikt(data));
-		
-		/*fetch(url {
-		method: "GET",
-		origin: 'http://localhost',
-		credentials: 'include',
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded'}
-		})
-		.then(response => response.text())
-		.then(function(data) {
-			let dikt = data.results;
-			document.getElementById('demo').innerHTML = data.results;
-		})*/
-
-		/*var xhttp = new XMLHttpRequest();
-		xhttp.onreadystatechange = function () {
-			if (xhttp.readyState == 4 && xhttp.status == 200) {
-				document.getElementById('demo').innerHTML = xhttp.responseText;
-				console.log(xhttp.responseText);
-			}
-		};
-		setTimeout(xhttp.open("GET", url, false), 3000);
-		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		xhttp.withCredentials = true;
-		setTimeout(xhttp.send(), 1000);*/
-	}
-	
-	function postDikt() {
-		
-		let dikt =document.getElementById('diktPOST');
-		
-		let response ="<dikt><tittel>"+dikt.value+"</tittel></dikt>";
-		
-		var xhttp = new XMLHttpRequest();
-		xhttp.onreadystatechange = function () {
-			if (xhttp.readyState == 4 && xhttp.status == 200) {
-				//console.log(xhttp.responseText);
-			}
-		};
-		xhttp.open("POST", "http://172.17.0.3/sqlite/database.db/dikt", false);
-		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		xhttp.withCredentials = true;
-		xhttp.send(response);
-	}
-	
-	function putDikt() {
-		
-		let dikt =document.getElementById('diktPUT');
-		let id =document.getElementById('diktPUTid');
-		
-		alert ( "Dikt er: " + dikt.value + " og id er: " + id.value)
-		
-		//let basis = 'http://172.17.0.3/sqlite/database.db/dikt/';
-		//let url = new URL(id.value, basis);
-		
-		//alert (url)
-		let url ="http://172.17.0.3/sqlite/database.db/dikt/"+id.value;
-		let response ="<dikt><tittel>"+dikt.value+"</tittel></dikt>";
-		
-		var xhttp = new XMLHttpRequest();
-		xhttp.onreadystatechange = function () {
-			if (xhttp.readyState == 4 && xhttp.status == 200) {
-				//console.log(xhttp.responseText);
-			}
-		};
-		xhttp.open("PUT", url, false);
-		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		xhttp.withCredentials = true;
-		xhttp.send(response);
-	}
-	
-	function slettDikt() {
-		
-		let dikt =document.getElementById('diktslett');
-		
-		let url ="http://172.17.0.3/sqlite/database.db/dikt/"+dikt.value;
-		
-		var xhttp = new XMLHttpRequest();
-		xhttp.onreadystatechange = function () {
-			if (xhttp.readyState == 4 && xhttp.status == 200) {
-				//console.log(xhttp.responseText);
-			}
-		};
-		xhttp.open("DELETE", url, false);
-		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		xhttp.withCredentials = true;
-		xhttp.send();
-	}
-	
-	function lesDikt(data) {
-		
-		const parser = new DOMParser();
-		
-		const xmlString = data;
-		const xmldocument = parser.parseFromString(xmlString, "application/xml");
-		
-		console.log(xmldocument.documentElement.textContent)
-		document.getElementById('demo').innerHTML = xmldocument.documentElement.textContent;
-		
-	}
-	
-	function serviceWorkerSjekk() {
-		if( ! ( 'serviceWorker' in navigator) )
-			alert ('ServiceWorker er ikke støttet')
-		else {
-			
-			navigator.serviceWorker.register('./serviceworker.js')
-				.then (function (reg) { alert('Installasjon fullført') 
-				})
-				.catch (function (err) { alert('Installasjon feilet: '+err) 
-				});
-		}
-	}
-	
-</script>
 </body>
 </html>
